@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "scripts": {
+    "start": "yarn workspace mobile start"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

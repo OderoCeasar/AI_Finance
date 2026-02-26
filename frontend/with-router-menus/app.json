@@ -1,0 +1,13 @@
+{
+  "scheme": "acme",
+  "userInterfaceStyle": "automatic",
+  "orientation": "default",
+  "web": {
+    "output": "static"
+  },
+  "plugins": [
+    "expo-router",
+    "@bacons/apple-colors",
+    "expo-web-browser"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "scheme": "acme",
+  "web": {
+    "output": "server"
+  },
+  "plugins": ["expo-router"]
+}

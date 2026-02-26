@@ -1,0 +1,11 @@
+{
+  "name": "with-s3",
+  "slug": "with-s3",
+  "scheme": "withs3",
+  "web": {
+    "output": "server"
+  },
+  "plugins": [
+    "expo-router"
+  ]
+}

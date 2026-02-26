@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "scheme": "dev.expo.eastestsexample",
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "package": "dev.expo.eastestsexample"
+    },
+    "ios": {
+      "bundleIdentifier": "dev.expo.eastestsexample"
+    }
+  }
+}

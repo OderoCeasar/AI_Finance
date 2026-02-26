@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "serve": "serve ./backend/firebase-wrapper-app.html"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "^54.0.1",
+    "expo-linking": "~8.0.7",
+    "expo-web-browser": "~15.0.6",
+    "firebase": "^9.6.9",
+    "react": "19.1.0",
+    "react-native": "0.81.4"
+  },
+  "devDependencies": {
+    "serve": "^13.0.2"
+  }
+}

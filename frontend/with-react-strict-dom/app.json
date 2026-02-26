@@ -1,0 +1,9 @@
+{
+  "scheme": "acme",
+  "plugins": ["expo-router"],
+  "newArchEnabled": true,
+  "userInterfaceStyle": "automatic",
+  "web": {
+    "output": "static"
+  }
+}
