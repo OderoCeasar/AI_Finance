@@ -1,0 +1,59 @@
+# REACT NATIVE / EXPO
+
+.expo/
+.expo-shared/
+node_modules/
+web-build/
+web-report/
+dist/
+.cache/
+.next/
+with-nextjs/out
+
+# Native build folders
+android/
+ios/
+*/ios/Pods
+
+# Logs
+yarn-error.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Lock files (keep only ONE in repo)
+package-lock.json
+yarn.lock
+bun.lock
+bun.lockb
+
+
+# DJANGO BACKEND
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/db.sqlite3
+backend/.env
+
+# ENVIRONMENT FILES
+
+.env
+.env.*
+*.env.local
+
+
+# OS / EDITOR
+
+.DS_Store
+.vscode/
+report.html
+
+# EXPO SDK LOGS
+.sdk-upgrade-logs
+.sdk-fix-logs
+
+with-gatsby/public
+with-router-menus/ios
+with-router-menus/android
+with-webgpu/ios
+with-webgpu/android
+with-skia/public/canvaskit.wasm
