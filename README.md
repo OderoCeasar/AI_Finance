@@ -79,8 +79,8 @@ Pick one frontend example folder, then run it:
 
 ```bash
 cd frontend/with-router
-npm install
-npx expo start
+pnpm install
+pnpm expo start
 ```
 
 You can substitute `with-router` with any example in `frontend/`.
