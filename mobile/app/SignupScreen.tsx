@@ -15,19 +15,20 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/types';
 
-type LoginScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type SignupScreenProps = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 };
 
 const { width } = Dimensions.get('window');
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleSignup = () => {
     setIsLoading(true);
-    // Simulate login
+    // Simulate signup
     setTimeout(() => {
       setIsLoading(false);
       navigation.navigate('Main');
@@ -77,12 +78,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         <View style={styles.formContainer}>
           {/* Header */}
           <View style={styles.formHeader}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue your financial journey</Text>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Start your smart budgeting journey</Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
+            {/* Name Field */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Full Name</Text>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputIcon}>👤</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your full name"
+                  placeholderTextColor={colors.primary[300]}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
             {/* Email Field */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email Address</Text>
@@ -105,7 +120,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 <Text style={styles.inputIcon}>🔒</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                   placeholderTextColor={colors.primary[300]}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -119,24 +134,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Remember & Forgot */}
-            <View style={styles.rememberRow}>
-              <TouchableOpacity style={styles.checkboxContainer}>
-                <View style={styles.checkbox}>
-                  <Text style={styles.checkmark}>✓</Text>
-                </View>
-                <Text style={styles.checkboxLabel}>Remember me</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity>
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </TouchableOpacity>
+            {/* Confirm Password Field */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputIcon}>🔒</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm your password"
+                  placeholderTextColor={colors.primary[300]}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Text style={styles.eyeIcon}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Submit Button */}
             <TouchableOpacity
               style={styles.submitButton}
-              onPress={handleLogin}
+              onPress={handleSignup}
               disabled={isLoading}
               activeOpacity={0.8}
             >
@@ -144,7 +166,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 <ActivityIndicator color={colors.text.white} />
               ) : (
                 <>
-                  <Text style={styles.submitButtonText}>Sign In</Text>
+                  <Text style={styles.submitButtonText}>Create Account</Text>
                   <Text style={styles.submitArrow}>→</Text>
                 </>
               )}
@@ -160,14 +182,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
           <TouchableOpacity style={styles.socialButton} activeOpacity={0.8}>
             <Text style={styles.socialIcon}>🔵</Text>
-            <Text style={styles.socialText}>Sign in with Google</Text>
+            <Text style={styles.socialText}>Sign up with Google</Text>
           </TouchableOpacity>
 
-          {/* Signup Link */}
-          <View style={styles.signupRow}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-              <Text style={styles.signupLink}>Sign up</Text>
+          {/* Login Link */}
+          <View style={styles.loginRow}>
+            <Text style={styles.loginText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.loginLink}>Login</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -273,7 +295,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -306,40 +328,6 @@ const styles = StyleSheet.create({
   eyeIcon: {
     fontSize: 18,
   },
-  rememberRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  checkmark: {
-    color: colors.primary[400],
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  checkboxLabel: {
-    color: colors.primary[200],
-    fontSize: 14,
-  },
-  forgotText: {
-    color: colors.primary[400],
-    fontSize: 14,
-  },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -347,6 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
     paddingVertical: 16,
     borderRadius: 14,
+    marginTop: 8,
     shadowColor: colors.primary[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -378,25 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingHorizontal: 16,
   },
-  biometricButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  biometricIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  biometricText: {
-    color: colors.text.white,
-    fontSize: 16,
-    fontWeight: '500',
-  },
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -416,20 +386,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  signupRow: {
+  loginRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 24,
   },
-  signupText: {
+  loginText: {
     color: colors.primary[200],
     fontSize: 14,
   },
-  signupLink: {
+  loginLink: {
     color: colors.primary[400],
     fontSize: 14,
     fontWeight: '600',
   },
 });
 
-export default LoginScreen;
+export default SignupScreen;
