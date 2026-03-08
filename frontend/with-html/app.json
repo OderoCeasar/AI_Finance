@@ -1,9 +1,0 @@
-{
-  "scheme": "acme",
-  "userInterfaceStyle": "automatic",
-  "orientation": "default",
-  "experiments": {
-    "typedRoutes": true
-  },
-  "plugins": ["expo-router", "expo-web-browser"]
-}

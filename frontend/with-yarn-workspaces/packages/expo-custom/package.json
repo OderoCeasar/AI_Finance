@@ -1,8 +1,0 @@
-{
-  "private": true,
-  "name": "expo-custom",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/index.js",
-  "sideEffects": false
-}

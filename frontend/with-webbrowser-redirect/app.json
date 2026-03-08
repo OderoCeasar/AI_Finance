@@ -1,8 +1,0 @@
-{
-  "expo": {
-    "scheme": "expo.examples.with-webbrowser-redirect",
-    "plugins": [
-      "expo-web-browser"
-    ]
-  }
-}

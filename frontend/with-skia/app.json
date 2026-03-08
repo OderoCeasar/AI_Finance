@@ -1,7 +1,0 @@
-{
-  "expo": {
-    "scheme": "skia",
-    "web": { "output": "static" },
-    "plugins": ["expo-router"]
-  }
-}
