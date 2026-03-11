@@ -58,3 +58,9 @@ class LoginSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+class GoogleSignInSerializer(serializers.Serializer):
+    """Validate Google sign-in request payload."""
+
+    id_token = serializers.CharField(write_only=True, allow_blank=False)
