@@ -1,12 +1,15 @@
 """Django settings for the finance_ai backend project."""
-
 import os
 from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "secret_key"
+load_dotenv(BASE_DIR / ".env")
+
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-me")
 DEBUG = True
 # ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
 ALLOWED_HOSTS = ["*"]
@@ -111,3 +114,5 @@ SIMPLE_JWT = {
 }
 
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+
+
