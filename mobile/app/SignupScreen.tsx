@@ -1,48 +1,77 @@
-import React, { useState } from 'react';
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Dimensions,
-  StatusBar,
-  ScrollView,
   ActivityIndicator,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors } from '../theme/colors';
-import { RootStackParamList } from '../navigation/types';
+  Dimensions,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { colors } from "../theme/colors";
+import { AntDesign } from '@expo/vector-icons';
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect } from 'react';
+import * as AuthSession from "expo-auth-session";
 
-type SignupScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Signup'>;
-};
+WebBrowser.maybeCompleteAuthSession();
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
-export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
+export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const router = useRouter();
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: "707284577096-n2kos6gmt64re4aqns41rgpgf6vgfo3k.apps.googleusercontent.com",
+  });
+
+  console.log("Redirect URI:", AuthSession.makeRedirectUri());
+
+  //handling Google login response
+  useEffect(() => {
+    if (response?.type === "success"){
+      const{ authentication } = response;
+
+      console.log("Google Access Token:", authentication?.accessToken);
+      console.log("Google ID Token:", authentication?.idToken);
+
+      setIsGoogleLoading(false);
+    }
+  }, [response]);
 
   const handleSignup = () => {
     setIsLoading(true);
     // Simulate signup
     setTimeout(() => {
       setIsLoading(false);
-      navigation.navigate('Main');
+      router.replace("/(tabs)");
     }, 1500);
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary[700]} />
-      
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={colors.primary[700]}
+      />
+
       {/* Animated Background */}
       <View style={styles.backgroundContainer}>
         <LinearGradient
-          colors={[colors.primary[900], colors.primary[700], colors.secondary[600]]}
+          colors={[
+            colors.primary[900],
+            colors.primary[700],
+            colors.secondary[600],
+          ]}
           style={styles.gradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -54,13 +83,13 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.logoContainer}>
           <View style={styles.logo}>
             <Text style={styles.logoIcon}>✨</Text>
@@ -70,7 +99,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       </View>
 
       {/* Form Content */}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -79,7 +108,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
           {/* Header */}
           <View style={styles.formHeader}>
             <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Start your smart budgeting journey</Text>
+            <Text style={styles.subtitle}>
+              Start your smart budgeting journey
+            </Text>
           </View>
 
           {/* Form */}
@@ -88,7 +119,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputIcon}>👤</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your full name"
@@ -102,7 +133,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email Address</Text>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputIcon}>📧</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your email"
@@ -117,7 +148,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputIcon}>🔒</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Create a password"
@@ -129,7 +160,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
                 >
-                  <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                  <Text style={styles.eyeIcon}>{showPassword ? "" : ""}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -138,7 +169,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Confirm Password</Text>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputIcon}>🔒</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Confirm your password"
@@ -150,7 +181,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
                   style={styles.eyeButton}
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
-                  <Text style={styles.eyeIcon}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                  <Text style={styles.eyeIcon}>
+                    {showConfirmPassword ? "" : ""}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -180,15 +213,19 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             <View style={styles.divider} />
           </View>
 
-          <TouchableOpacity style={styles.socialButton} activeOpacity={0.8}>
-            <Text style={styles.socialIcon}>🔵</Text>
+          <TouchableOpacity 
+            style={styles.socialButton} 
+            activeOpacity={0.8}
+            onPress={() => promptAsync()}
+          >
+            <AntDesign name="google" size={24} color="#DB4437" />
             <Text style={styles.socialText}>Sign up with Google</Text>
           </TouchableOpacity>
 
           {/* Login Link */}
           <View style={styles.loginRow}>
             <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity onPress={() => router.push("/LoginScreen")}>
               <Text style={styles.loginLink}>Login</Text>
             </TouchableOpacity>
           </View>
@@ -196,7 +233,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -210,7 +247,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   circle: {
-    position: 'absolute',
+    position: "absolute",
     borderRadius: 1000,
     opacity: 0.2,
   },
@@ -236,8 +273,8 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 20,
   },
   backText: {
@@ -245,23 +282,23 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   logo: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   logoIcon: {
     fontSize: 20,
   },
   brandName: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.text.white,
     marginLeft: 12,
   },
@@ -279,7 +316,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.text.white,
     marginBottom: 8,
   },
@@ -288,28 +325,28 @@ const styles = StyleSheet.create({
     color: colors.primary[200],
   },
   form: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   inputContainer: {
     marginBottom: 16,
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     color: colors.primary[100],
     marginBottom: 8,
   },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   inputIcon: {
     fontSize: 18,
@@ -329,9 +366,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.primary[500],
     paddingVertical: 16,
     borderRadius: 14,
@@ -345,7 +382,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: colors.text.white,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     marginRight: 8,
   },
   submitArrow: {
@@ -353,14 +390,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 20,
   },
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   dividerText: {
     color: colors.primary[200],
@@ -368,14 +405,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     paddingVertical: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   socialIcon: {
     fontSize: 20,
@@ -384,11 +421,11 @@ const styles = StyleSheet.create({
   socialText: {
     color: colors.text.white,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   loginRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 24,
   },
   loginText: {
@@ -398,8 +435,6 @@ const styles = StyleSheet.create({
   loginLink: {
     color: colors.primary[400],
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
-
-export default SignupScreen;

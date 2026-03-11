@@ -11,26 +11,23 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { colors } from '../theme/colors';
-import { RootStackParamList } from '../navigation/types';
-
-type LoginScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
-};
+import { AntDesign } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = () => {
     setIsLoading(true);
     // Simulate login
     setTimeout(() => {
       setIsLoading(false);
-      navigation.navigate('Main');
+      router.replace('/(tabs)');
     }, 1500);
   };
 
@@ -55,7 +52,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -87,7 +84,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email Address</Text>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputIcon}>📧</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your email"
@@ -102,7 +99,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Password</Text>
               <View style={styles.inputWrapper}>
-                <Text style={styles.inputIcon}>🔒</Text>
+                <Text style={styles.inputIcon}></Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your password"
@@ -114,7 +111,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                   style={styles.eyeButton}
                   onPress={() => setShowPassword(!showPassword)}
                 >
-                  <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                  <Text style={styles.eyeIcon}>{showPassword ? '' : ''}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -159,14 +156,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           </View>
 
           <TouchableOpacity style={styles.socialButton} activeOpacity={0.8}>
-            <Text style={styles.socialIcon}>🔵</Text>
+            <AntDesign name="google" size={24} color="#DB4437" />
             <Text style={styles.socialText}>Sign in with Google</Text>
           </TouchableOpacity>
 
           {/* Signup Link */}
           <View style={styles.signupRow}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+            <Text style={styles.signupText}>Do not have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/SignupScreen')}>
               <Text style={styles.signupLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
@@ -431,5 +428,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
-export default LoginScreen;

@@ -35,7 +35,7 @@ export default function WelcomeScreen() {
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>AI Finance</Text>
+          <Text style={styles.logoText}>AI_Finance</Text>
           <Text style={styles.tagline}>Smart Money Management</Text>
         </View>
 
