@@ -20,10 +20,11 @@ export function useGoogleAuth({ clientId, onSuccess }: GoogleAuthOptions): Googl
 
   WebBrowser.maybeCompleteAuthSession();
 
-  const googleClientId =
-    clientId ??
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ??
-    '707284577096-n2kos6gmt64re4aqns41rgpgf6vgfo3k.apps.googleusercontent.com';
+  const googleClientId = clientId ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!googleClientId) {
+    throw new Error('EXPO_PUBLIC_GOOGLE_CLIENT_ID is missing in the environment.');
+  }
 
   const redirectUri = AuthSession.makeRedirectUri();
   const [request, response, promptAsync] = Google.useAuthRequest({
