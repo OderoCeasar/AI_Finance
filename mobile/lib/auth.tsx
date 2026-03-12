@@ -23,6 +23,7 @@ type AuthPayload = {
 type AuthResult = {
   ok: boolean;
   error?: string;
+  errors?: unknown;
 };
 
 type AuthContextValue = {
@@ -97,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async ({ email, password }: { email: string; password: string }) => {
     const result = await api.post<AuthPayload>('auth/login/', { email, password });
     if (!result.ok || !result.data) {
-      return { ok: false, error: result.message ?? 'Login failed.' };
+      return { ok: false, error: result.message ?? 'Login failed.', errors: result.errors };
     }
     await persistAuth(result.data);
     return { ok: true };
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async ({ name, email, password }: { name: string; email: string; password: string }) => {
     const result = await api.post<AuthPayload>('auth/register/', { name, email, password });
     if (!result.ok || !result.data) {
-      return { ok: false, error: result.message ?? 'Registration failed.' };
+      return { ok: false, error: result.message ?? 'Registration failed.', errors: result.errors };
     }
     await persistAuth(result.data);
     return { ok: true };
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async (idToken: string) => {
     const result = await api.post<AuthPayload>('auth/google/', { id_token: idToken });
     if (!result.ok || !result.data) {
-      return { ok: false, error: result.message ?? 'Google sign-in failed.' };
+      return { ok: false, error: result.message ?? 'Google sign-in failed.', errors: result.errors };
     }
     await persistAuth(result.data);
     return { ok: true };

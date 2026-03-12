@@ -38,6 +38,28 @@ export default function LoginScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
 
+  const formatErrors = (errors: unknown) => {
+    if (!errors || typeof errors !== 'object') {
+      return null;
+    }
+    const entries = Object.entries(errors as Record<string, unknown>);
+    if (!entries.length) {
+      return null;
+    }
+    const messages = entries.flatMap(([key, value]) => {
+      if (Array.isArray(value)) {
+        return value.map((item) => `${key}: ${String(item)}`);
+      }
+      if (value && typeof value === 'object') {
+        return Object.entries(value).map(
+          ([childKey, childValue]) => `${key}.${childKey}: ${String(childValue)}`,
+        );
+      }
+      return `${key}: ${String(value)}`;
+    });
+    return messages.join(' | ');
+  };
+
   const handleLogin = async () => {
     setFormError('');
     if (!email.trim() || !password) {
@@ -52,7 +74,8 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
       return;
     }
-    setFormError(result.error ?? 'Unable to sign in.');
+    const fieldErrors = formatErrors(result.errors);
+    setFormError(fieldErrors ?? result.error ?? 'Unable to sign in.');
   };
 
   return (

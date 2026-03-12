@@ -16,6 +16,7 @@ import { AntDesign } from '@expo/vector-icons';
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from 'react';
+import * as AuthSession from "expo-auth-session";
 
 import { useAuth } from '@/lib/auth';
 
@@ -47,11 +48,40 @@ export default function SignupScreen() {
   const router = useRouter();
   const { signUp, signInWithGoogle } = useAuth();
 
+  const formatErrors = (errors: unknown) => {
+    if (!errors || typeof errors !== 'object') {
+      return null;
+    }
+    const entries = Object.entries(errors as Record<string, unknown>);
+    if (!entries.length) {
+      return null;
+    }
+    const messages = entries.flatMap(([key, value]) => {
+      if (Array.isArray(value)) {
+        return value.map((item) => `${key}: ${String(item)}`);
+      }
+      if (value && typeof value === 'object') {
+        return Object.entries(value).map(
+          ([childKey, childValue]) => `${key}.${childKey}: ${String(childValue)}`,
+        );
+      }
+      return `${key}: ${String(value)}`;
+    });
+    return messages.join(' | ');
+  };
+
   const googleClientId =
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ??
     "707284577096-n2kos6gmt64re4aqns41rgpgf6vgfo3k.apps.googleusercontent.com";
+  const redirectUri = AuthSession.makeRedirectUri();
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: googleClientId,
+    webClientId: googleClientId,
+    expoClientId: googleClientId,
+    redirectUri,
+    responseType: AuthSession.ResponseType.IdToken,
+    scopes: ["openid", "profile", "email"],
+    prompt: "select_account",
   });
 
   //handling Google login response
@@ -111,7 +141,8 @@ export default function SignupScreen() {
       router.replace("/(tabs)");
       return;
     }
-    setFormError(result.error ?? 'Unable to create account.');
+    const fieldErrors = formatErrors(result.errors);
+    setFormError(fieldErrors ?? result.error ?? 'Unable to create account.');
   };
 
   return (
