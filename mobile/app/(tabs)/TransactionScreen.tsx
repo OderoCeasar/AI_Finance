@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+
 const palette = {
   accentGreen: '#4ADE80',
   sidebar: '#1E293B',
@@ -21,9 +24,6 @@ const palette = {
   surface: '#F8FAFC',
   card: '#FFFFFF',
 };
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api';
-const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN;
 
 type CategoryOption = {
   id: number;
@@ -127,9 +127,11 @@ export default function TransactionScreen() {
   const [formError, setFormError] = useState('');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [filterCategoryOpen, setFilterCategoryOpen] = useState(false);
+  const { tokens } = useAuth();
+  const accessToken = tokens?.access;
 
   useEffect(() => {
-    if (!API_TOKEN) {
+    if (!accessToken) {
       return;
     }
 
@@ -137,12 +139,9 @@ export default function TransactionScreen() {
 
     const fetchCategories = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/categories/`, {
-          headers: { Authorization: `Bearer ${API_TOKEN}` },
-        });
-        const payload = await response.json();
-        if (isMounted && response.ok && payload?.success && payload?.data?.length) {
-          setCategories(payload.data);
+        const result = await api.get<CategoryOption[]>('categories/', accessToken);
+        if (isMounted && result.ok && result.data?.length) {
+          setCategories(result.data);
         }
       } catch (error) {
         if (isMounted) {
@@ -156,10 +155,10 @@ export default function TransactionScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
-    if (!API_TOKEN) {
+    if (!accessToken) {
       return;
     }
 
@@ -179,16 +178,19 @@ export default function TransactionScreen() {
           query.append('month', filterMonth.slice(0, 7));
         }
 
-        const response = await fetch(`${API_BASE_URL}/transactions/?${query.toString()}`, {
-          headers: { Authorization: `Bearer ${API_TOKEN}` },
-        });
-        const payload = await response.json();
+        const result = await api.get<{ results?: TransactionItem[] } | TransactionItem[]>(
+          `transactions/?${query.toString()}`,
+          accessToken,
+        );
         if (!isMounted) {
           return;
         }
-        if (response.ok && payload?.success) {
-          const data = payload.data?.results ?? payload.data ?? [];
-          setTransactions(data);
+        if (result.ok && result.data) {
+          if (Array.isArray(result.data)) {
+            setTransactions(result.data);
+          } else {
+            setTransactions(result.data.results ?? []);
+          }
         }
       } catch (error) {
         if (isMounted) {
@@ -206,7 +208,7 @@ export default function TransactionScreen() {
     return () => {
       isMounted = false;
     };
-  }, [filterType, filterCategoryId, filterMonth]);
+  }, [accessToken, filterType, filterCategoryId, filterMonth]);
 
   const selectedCategory = useMemo(() => {
     return categories.find((item) => item.id === categoryId) ?? null;
@@ -251,7 +253,7 @@ export default function TransactionScreen() {
       return;
     }
 
-    if (!API_TOKEN) {
+    if (!accessToken) {
       const tempCategory = selectedCategory ?? categories[0];
       const newItem: TransactionItem = {
         id: Math.floor(Math.random() * 100000),
@@ -271,29 +273,25 @@ export default function TransactionScreen() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/transactions/`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const result = await api.post<TransactionItem>(
+        'transactions/',
+        {
           amount: amountValue,
           category_id: categoryId,
           type: transactionType,
           description: description.trim(),
           date,
-        }),
-      });
-      const payload = await response.json();
-      if (response.ok && payload?.success && payload?.data) {
-        setTransactions((prev) => [payload.data, ...prev]);
+        },
+        accessToken,
+      );
+      if (result.ok && result.data) {
+        setTransactions((prev) => [result.data, ...prev]);
         setAmount('');
         setDescription('');
         setDate('');
         setCategoryId(null);
       } else {
-        setFormError(payload?.message ?? 'Unable to save transaction.');
+        setFormError(result.message ?? 'Unable to save transaction.');
       }
     } catch (error) {
       setFormError('Unable to save transaction right now.');

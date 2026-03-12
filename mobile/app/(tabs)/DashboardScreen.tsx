@@ -8,6 +8,9 @@ import {
   View,
 } from 'react-native';
 
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+
 const palette = {
   accentGreen: '#4ADE80',
   sidebar: '#1E293B',
@@ -18,9 +21,6 @@ const palette = {
   surface: '#F8FAFC',
   card: '#FFFFFF',
 };
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api';
-const API_TOKEN = process.env.EXPO_PUBLIC_API_TOKEN;
 
 type DashboardSummary = {
   income: number | string;
@@ -85,9 +85,11 @@ export default function DashboardScreen() {
   const [breakdown, setBreakdown] = useState<CategoryBreakdownItem[]>([]);
   const [insights, setInsights] = useState<RecommendationItem[]>(fallbackInsights);
   const [isLoading, setIsLoading] = useState(false);
+  const { tokens } = useAuth();
+  const accessToken = tokens?.access;
 
   useEffect(() => {
-    if (!API_TOKEN) {
+    if (!accessToken) {
       return;
     }
 
@@ -96,27 +98,22 @@ export default function DashboardScreen() {
     const fetchDashboard = async () => {
       setIsLoading(true);
       try {
-        const headers = { Authorization: `Bearer ${API_TOKEN}` };
         const [summaryRes, breakdownRes, insightsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/analytics/dashboard/`, { headers }),
-          fetch(`${API_BASE_URL}/analytics/category-breakdown/`, { headers }),
-          fetch(`${API_BASE_URL}/recommendations/`, { headers }),
+          api.get<DashboardSummary>('analytics/dashboard/', accessToken),
+          api.get<CategoryBreakdownItem[]>('analytics/category-breakdown/', accessToken),
+          api.get<RecommendationItem[]>('recommendations/', accessToken),
         ]);
 
-        const summaryJson = await summaryRes.json();
-        const breakdownJson = await breakdownRes.json();
-        const insightsJson = await insightsRes.json();
-
-        if (isMounted && summaryRes.ok && summaryJson?.success && summaryJson?.data) {
-          setSummary(summaryJson.data);
+        if (isMounted && summaryRes.ok && summaryRes.data) {
+          setSummary(summaryRes.data);
         }
 
-        if (isMounted && breakdownRes.ok && breakdownJson?.success && breakdownJson?.data) {
-          setBreakdown(breakdownJson.data);
+        if (isMounted && breakdownRes.ok && breakdownRes.data) {
+          setBreakdown(breakdownRes.data);
         }
 
-        if (isMounted && insightsRes.ok && insightsJson?.success && insightsJson?.data?.length) {
-          setInsights(insightsJson.data);
+        if (isMounted && insightsRes.ok && insightsRes.data?.length) {
+          setInsights(insightsRes.data);
         }
       } catch (error) {
         if (isMounted) {
@@ -136,7 +133,7 @@ export default function DashboardScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [accessToken]);
 
   const budgetProgress = useMemo(() => {
     if (!breakdown.length) {
