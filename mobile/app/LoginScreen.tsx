@@ -14,6 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
+import { useAuth } from '@/lib/auth';
+
 const { width } = Dimensions.get('window');
 
 const palette = {
@@ -30,15 +32,27 @@ const palette = {
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [formError, setFormError] = useState('');
   const router = useRouter();
+  const { signIn } = useAuth();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    setFormError('');
+    if (!email.trim() || !password) {
+      setFormError('Enter your email and password.');
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate login
-    setTimeout(() => {
-      setIsLoading(false);
+    const result = await signIn({ email: email.trim(), password });
+    setIsLoading(false);
+    if (result.ok) {
       router.replace('/(tabs)');
-    }, 1500);
+      return;
+    }
+    setFormError(result.error ?? 'Unable to sign in.');
   };
 
   return (
@@ -101,6 +115,8 @@ export default function LoginScreen() {
                   placeholderTextColor={palette.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
                 />
               </View>
             </View>
@@ -116,6 +132,8 @@ export default function LoginScreen() {
                   placeholderTextColor={palette.textSecondary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  value={password}
+                  onChangeText={setPassword}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -139,6 +157,8 @@ export default function LoginScreen() {
                 <Text style={styles.forgotText}>Forgot password?</Text>
               </TouchableOpacity>
             </View>
+
+            {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -343,6 +363,11 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     color: palette.textSecondary,
     fontSize: 14,
+  },
+  errorText: {
+    color: palette.cashBlue,
+    fontSize: 12,
+    marginBottom: 12,
   },
   forgotText: {
     color: palette.cashBlue,

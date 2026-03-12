@@ -16,7 +16,8 @@ import { AntDesign } from '@expo/vector-icons';
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from 'react';
-import * as AuthSession from "expo-auth-session";
+
+import { useAuth } from '@/lib/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -38,33 +39,79 @@ export default function SignupScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [formError, setFormError] = useState('');
   const router = useRouter();
+  const { signUp, signInWithGoogle } = useAuth();
 
+  const googleClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ??
+    "707284577096-n2kos6gmt64re4aqns41rgpgf6vgfo3k.apps.googleusercontent.com";
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: "707284577096-n2kos6gmt64re4aqns41rgpgf6vgfo3k.apps.googleusercontent.com",
+    clientId: googleClientId,
   });
-
-  console.log("Redirect URI:", AuthSession.makeRedirectUri());
 
   //handling Google login response
   useEffect(() => {
-    if (response?.type === "success"){
-      const{ authentication } = response;
+    if (response?.type === "success") {
+      const { authentication } = response;
 
-      console.log("Google Access Token:", authentication?.accessToken);
-      console.log("Google ID Token:", authentication?.idToken);
+      const idToken = authentication?.idToken;
+      if (!idToken) {
+        setFormError('Unable to read Google ID token.');
+        setIsGoogleLoading(false);
+        return;
+      }
 
+      signInWithGoogle(idToken)
+        .then((result) => {
+          if (result.ok) {
+            router.replace("/(tabs)");
+            return;
+          }
+          setFormError(result.error ?? 'Google sign-in failed.');
+        })
+        .finally(() => setIsGoogleLoading(false));
+    }
+    if (response && response.type !== "success") {
       setIsGoogleLoading(false);
     }
-  }, [response]);
+  }, [response, signInWithGoogle, router]);
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
+    setFormError('');
+    if (!fullName.trim()) {
+      setFormError('Enter your full name.');
+      return;
+    }
+    if (!email.trim()) {
+      setFormError('Enter a valid email address.');
+      return;
+    }
+    if (!password) {
+      setFormError('Create a password.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setFormError('Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate signup
-    setTimeout(() => {
-      setIsLoading(false);
+    const result = await signUp({
+      name: fullName.trim(),
+      email: email.trim(),
+      password,
+    });
+    setIsLoading(false);
+    if (result.ok) {
       router.replace("/(tabs)");
-    }, 1500);
+      return;
+    }
+    setFormError(result.error ?? 'Unable to create account.');
   };
 
   return (
@@ -134,6 +181,8 @@ export default function SignupScreen() {
                   placeholder="Enter your full name"
                   placeholderTextColor={palette.textSecondary}
                   autoCapitalize="words"
+                  value={fullName}
+                  onChangeText={setFullName}
                 />
               </View>
             </View>
@@ -149,6 +198,8 @@ export default function SignupScreen() {
                   placeholderTextColor={palette.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
                 />
               </View>
             </View>
@@ -164,6 +215,8 @@ export default function SignupScreen() {
                   placeholderTextColor={palette.textSecondary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  value={password}
+                  onChangeText={setPassword}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -185,6 +238,8 @@ export default function SignupScreen() {
                   placeholderTextColor={palette.textSecondary}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
@@ -196,6 +251,8 @@ export default function SignupScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -225,10 +282,21 @@ export default function SignupScreen() {
           <TouchableOpacity 
             style={styles.socialButton} 
             activeOpacity={0.8}
-            onPress={() => promptAsync()}
+            onPress={() => {
+              setFormError('');
+              setIsGoogleLoading(true);
+              promptAsync();
+            }}
+            disabled={!request || isGoogleLoading}
           >
-            <AntDesign name="google" size={24} color="#DB4437" />
-            <Text style={styles.socialText}>Sign up with Google</Text>
+            {isGoogleLoading ? (
+              <ActivityIndicator color={palette.textPrimary} />
+            ) : (
+              <>
+                <AntDesign name="google" size={24} color="#DB4437" />
+                <Text style={styles.socialText}>Sign up with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           {/* Login Link */}
@@ -374,6 +442,11 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     fontSize: 18,
+  },
+  errorText: {
+    color: palette.cashBlue,
+    fontSize: 12,
+    marginBottom: 12,
   },
   submitButton: {
     flexDirection: "row",
