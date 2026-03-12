@@ -556,7 +556,7 @@ export default function TransactionScreen() {
                         { backgroundColor: isIncome ? palette.mpesaGreen : palette.cashBlue },
                       ]}
                     >
-                      <AntDesign name={isIncome ? 'arrowdown' : 'arrowup'} size={14} color="#fff" />
+                      <AntDesign name={isIncome ? 'arrow-down' : 'arrow-up'} size={14} color="#fff" />
                     </View>
                     <View style={styles.transactionInfo}>
                       <Text style={styles.transactionCategory}>
