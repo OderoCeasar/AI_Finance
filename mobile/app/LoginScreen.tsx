@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
 import { useAuth } from '@/lib/auth';
+import { useGoogleAuth } from '@/lib/use-google-auth';
 
 const { width } = Dimensions.get('window');
 
@@ -32,11 +33,23 @@ const palette = {
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState('');
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
+
+  const googleAuth = useGoogleAuth({
+    onSuccess: async (idToken) => {
+      const result = await signInWithGoogle(idToken);
+      if (result.ok) {
+        router.replace('/(tabs)');
+        return;
+      }
+      throw new Error(result.error ?? 'Google sign-in failed.');
+    },
+  });
 
   const formatErrors = (errors: unknown) => {
     if (!errors || typeof errors !== 'object') {
@@ -77,6 +90,13 @@ export default function LoginScreen() {
     const fieldErrors = formatErrors(result.errors);
     setFormError(fieldErrors ?? result.error ?? 'Unable to sign in.');
   };
+
+  useEffect(() => {
+    if (googleAuth.error) {
+      setFormError(googleAuth.error);
+      setIsGoogleLoading(false);
+    }
+  }, [googleAuth.error]);
 
   return (
     <View style={styles.container}>
@@ -208,9 +228,24 @@ export default function LoginScreen() {
             <View style={styles.divider} />
           </View>
 
-          <TouchableOpacity style={styles.socialButton} activeOpacity={0.8}>
-            <AntDesign name="google" size={24} color="#DB4437" />
-            <Text style={styles.socialText}>Sign in with Google</Text>
+          <TouchableOpacity
+            style={styles.socialButton}
+            activeOpacity={0.8}
+            onPress={() => {
+              setFormError('');
+              setIsGoogleLoading(true);
+              googleAuth.prompt();
+            }}
+            disabled={isGoogleLoading || googleAuth.isLoading}
+          >
+            {isGoogleLoading ? (
+              <ActivityIndicator color={palette.textPrimary} />
+            ) : (
+              <>
+                <AntDesign name="google" size={24} color="#DB4437" />
+                <Text style={styles.socialText}>Sign in with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           {/* Signup Link */}

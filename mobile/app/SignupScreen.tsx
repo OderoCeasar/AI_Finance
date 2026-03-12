@@ -13,12 +13,10 @@ import {
   View,
 } from "react-native";
 import { AntDesign } from '@expo/vector-icons';
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from 'expo-web-browser';
 import { useEffect } from 'react';
-import * as AuthSession from "expo-auth-session";
 
 import { useAuth } from '@/lib/auth';
+import { useGoogleAuth } from '@/lib/use-google-auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -70,46 +68,23 @@ export default function SignupScreen() {
     return messages.join(' | ');
   };
 
-  const googleClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ??
-    "707284577096-n2kos6gmt64re4aqns41rgpgf6vgfo3k.apps.googleusercontent.com";
-  const redirectUri = AuthSession.makeRedirectUri();
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: googleClientId,
-    webClientId: googleClientId,
-    expoClientId: googleClientId,
-    redirectUri,
-    responseType: AuthSession.ResponseType.IdToken,
-    scopes: ["openid", "profile", "email"],
-    prompt: "select_account",
-  });
-
-  //handling Google login response
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { authentication } = response;
-
-      const idToken = authentication?.idToken;
-      if (!idToken) {
-        setFormError('Unable to read Google ID token.');
-        setIsGoogleLoading(false);
+  const googleAuth = useGoogleAuth({
+    onSuccess: async (idToken) => {
+      const result = await signInWithGoogle(idToken);
+      if (result.ok) {
+        router.replace('/(tabs)');
         return;
       }
+      throw new Error(result.error ?? 'Google sign-in failed.');
+    },
+  });
 
-      signInWithGoogle(idToken)
-        .then((result) => {
-          if (result.ok) {
-            router.replace("/(tabs)");
-            return;
-          }
-          setFormError(result.error ?? 'Google sign-in failed.');
-        })
-        .finally(() => setIsGoogleLoading(false));
-    }
-    if (response && response.type !== "success") {
+  useEffect(() => {
+    if (googleAuth.error) {
+      setFormError(googleAuth.error);
       setIsGoogleLoading(false);
     }
-  }, [response, signInWithGoogle, router]);
+  }, [googleAuth.error]);
 
   const handleSignup = async () => {
     setFormError('');
@@ -316,9 +291,9 @@ export default function SignupScreen() {
             onPress={() => {
               setFormError('');
               setIsGoogleLoading(true);
-              promptAsync();
+              googleAuth.prompt();
             }}
-            disabled={!request || isGoogleLoading}
+            disabled={isGoogleLoading || googleAuth.isLoading}
           >
             {isGoogleLoading ? (
               <ActivityIndicator color={palette.textPrimary} />
