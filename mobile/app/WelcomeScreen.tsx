@@ -9,19 +9,29 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
-import { colors } from '../theme/colors';
 
 const { width, height } = Dimensions.get('window');
+
+const palette = {
+  accentGreen: '#4ADE80',
+  sidebar: '#1E293B',
+  textSecondary: '#64748B',
+  textPrimary: '#0F172A',
+  cashBlue: '#2563EB',
+  mpesaGreen: '#10B981',
+  surface: '#F8FAFC',
+  card: '#FFFFFF',
+};
 
 export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary[700]} />
+      <StatusBar barStyle="dark-content" backgroundColor={palette.surface} />
 
       {/* Animated Background */}
       <View style={styles.backgroundContainer}>
         <LinearGradient
-          colors={[colors.primary[900], colors.primary[700], colors.secondary[600]]}
+          colors={[palette.surface, palette.card]}
           style={styles.gradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -75,7 +85,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary[900],
+    backgroundColor: palette.surface,
   },
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -88,25 +98,27 @@ const styles = StyleSheet.create({
   circle: {
     position: 'absolute',
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   circle1: {
     width: width * 0.8,
     height: width * 0.8,
     top: -width * 0.4,
     right: -width * 0.4,
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
   },
   circle2: {
     width: width * 0.6,
     height: width * 0.6,
     bottom: -width * 0.3,
     left: -width * 0.3,
+    backgroundColor: 'rgba(74, 222, 128, 0.12)',
   },
   circle3: {
     width: width * 0.4,
     height: width * 0.4,
     top: height * 0.3,
     left: -width * 0.2,
+    backgroundColor: 'rgba(30, 41, 59, 0.08)',
   },
   content: {
     flex: 1,
@@ -121,13 +133,12 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: colors.text.white,
+    color: palette.textPrimary,
     marginBottom: 8,
   },
   tagline: {
     fontSize: 18,
-    color: colors.text.white,
-    opacity: 0.9,
+    color: palette.textSecondary,
   },
   descriptionContainer: {
     marginBottom: 60,
@@ -135,10 +146,9 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: colors.text.white,
+    color: palette.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
-    opacity: 0.8,
   },
   buttonContainer: {
     width: '100%',
@@ -146,7 +156,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   primaryButton: {
-    backgroundColor: colors.text.white,
+    backgroundColor: palette.accentGreen,
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -161,21 +171,21 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   primaryButtonText: {
-    color: colors.primary[700],
+    color: palette.textPrimary,
     fontSize: 18,
     fontWeight: '600',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: colors.text.white,
+    borderColor: palette.sidebar,
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: colors.text.white,
+    color: palette.sidebar,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -185,12 +195,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: colors.text.white,
+    color: palette.textSecondary,
     fontSize: 14,
-    opacity: 0.7,
   },
   linkText: {
-    color: colors.secondary[400],
+    color: palette.cashBlue,
     fontWeight: '600',
   },
 });

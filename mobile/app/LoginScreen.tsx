@@ -12,10 +12,20 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { colors } from '../theme/colors';
 import { AntDesign } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
+
+const palette = {
+  accentGreen: '#4ADE80',
+  sidebar: '#1E293B',
+  textSecondary: '#64748B',
+  textPrimary: '#0F172A',
+  cashBlue: '#2563EB',
+  mpesaGreen: '#10B981',
+  surface: '#F8FAFC',
+  card: '#FFFFFF',
+};
 
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,12 +43,12 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary[700]} />
+      <StatusBar barStyle="dark-content" backgroundColor={palette.surface} />
       
       {/* Animated Background */}
       <View style={styles.backgroundContainer}>
         <LinearGradient
-          colors={[colors.primary[900], colors.primary[700], colors.secondary[600]]}
+          colors={[palette.surface, palette.card]}
           style={styles.gradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -88,7 +98,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your email"
-                  placeholderTextColor={colors.primary[300]}
+                  placeholderTextColor={palette.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -103,7 +113,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your password"
-                  placeholderTextColor={colors.primary[300]}
+                  placeholderTextColor={palette.textSecondary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
@@ -138,7 +148,7 @@ export default function LoginScreen() {
               activeOpacity={0.8}
             >
               {isLoading ? (
-                <ActivityIndicator color={colors.text.white} />
+                <ActivityIndicator color={palette.textPrimary} />
               ) : (
                 <>
                   <Text style={styles.submitButtonText}>Sign In</Text>
@@ -176,7 +186,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary[700],
+    backgroundColor: palette.surface,
   },
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -192,16 +202,16 @@ const styles = StyleSheet.create({
   circle1: {
     width: width * 1.2,
     height: width * 1.2,
-    backgroundColor: colors.primary[500],
     top: -width * 0.3,
     right: -width * 0.2,
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
   },
   circle2: {
     width: width * 1.2,
     height: width * 1.2,
-    backgroundColor: colors.secondary[500],
     bottom: -width * 0.3,
     left: -width * 0.2,
+    backgroundColor: 'rgba(74, 222, 128, 0.12)',
   },
   header: {
     paddingHorizontal: 20,
@@ -216,7 +226,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backText: {
-    color: colors.text.white,
+    color: palette.textPrimary,
     fontSize: 24,
   },
   logoContainer: {
@@ -227,17 +237,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: palette.sidebar,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoIcon: {
     fontSize: 20,
+    color: palette.card,
   },
   brandName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text.white,
+    color: palette.textPrimary,
     marginLeft: 12,
   },
   scrollView: {
@@ -255,19 +266,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: colors.text.white,
+    color: palette.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.primary[200],
+    color: palette.textSecondary,
   },
   form: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: palette.card,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(100, 116, 139, 0.25)',
   },
   inputContainer: {
     marginBottom: 20,
@@ -275,16 +286,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.primary[100],
+    color: palette.textSecondary,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: palette.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(100, 116, 139, 0.25)',
   },
   inputIcon: {
     fontSize: 18,
@@ -294,7 +305,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 16,
     paddingHorizontal: 12,
-    color: colors.text.white,
+    color: palette.textPrimary,
     fontSize: 16,
   },
   eyeButton: {
@@ -318,46 +329,46 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(100, 116, 139, 0.35)',
+    backgroundColor: palette.card,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
   },
   checkmark: {
-    color: colors.primary[400],
+    color: palette.mpesaGreen,
     fontSize: 12,
     fontWeight: 'bold',
   },
   checkboxLabel: {
-    color: colors.primary[200],
+    color: palette.textSecondary,
     fontSize: 14,
   },
   forgotText: {
-    color: colors.primary[400],
+    color: palette.cashBlue,
     fontSize: 14,
   },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[500],
+    backgroundColor: palette.accentGreen,
     paddingVertical: 16,
     borderRadius: 14,
-    shadowColor: colors.primary[500],
+    shadowColor: palette.accentGreen,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   submitButtonText: {
-    color: colors.text.white,
+    color: palette.textPrimary,
     fontSize: 18,
     fontWeight: '600',
     marginRight: 8,
   },
   submitArrow: {
-    color: colors.text.white,
+    color: palette.textPrimary,
     fontSize: 18,
   },
   dividerContainer: {
@@ -368,10 +379,10 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(100, 116, 139, 0.3)',
   },
   dividerText: {
-    color: colors.primary[200],
+    color: palette.textSecondary,
     fontSize: 14,
     paddingHorizontal: 16,
   },
@@ -379,18 +390,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: palette.card,
     paddingVertical: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(100, 116, 139, 0.25)',
   },
   biometricIcon: {
     fontSize: 20,
     marginRight: 8,
   },
   biometricText: {
-    color: colors.text.white,
+    color: palette.textPrimary,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -398,18 +409,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: palette.card,
     paddingVertical: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(100, 116, 139, 0.25)',
   },
   socialIcon: {
     fontSize: 20,
     marginRight: 8,
   },
   socialText: {
-    color: colors.text.white,
+    color: palette.textPrimary,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -419,11 +430,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   signupText: {
-    color: colors.primary[200],
+    color: palette.textSecondary,
     fontSize: 14,
   },
   signupLink: {
-    color: colors.primary[400],
+    color: palette.cashBlue,
     fontSize: 14,
     fontWeight: '600',
   },
