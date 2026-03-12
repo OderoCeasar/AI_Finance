@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-import { api } from '@/lib/api';
+import { api, apiRequest } from '@/lib/api';
 import { storage } from '@/lib/storage';
 
 type AuthTokens = {
@@ -16,7 +16,7 @@ type AuthUser = {
 };
 
 type AuthPayload = {
-  user: AuthUser;
+  user: AuthUser | null;
   tokens: AuthTokens;
 };
 
@@ -32,6 +32,7 @@ type AuthContextValue = {
   signIn: (params: { email: string; password: string }) => Promise<AuthResult>;
   signUp: (params: { name: string; email: string; password: string }) => Promise<AuthResult>;
   signInWithGoogle: (idToken: string) => Promise<AuthResult>;
+  refreshAccessToken: () => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -39,6 +40,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const STORAGE_USER_KEY = 'auth.user';
 const STORAGE_TOKENS_KEY = 'auth.tokens';
+let refreshPromise: Promise<string | null> | null = null;
 
 const parseStored = <T,>(value: string | null): T | null => {
   if (!value) {
@@ -83,10 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUser(payload.user);
     setTokens(payload.tokens);
-    await Promise.all([
-      storage.setItem(STORAGE_USER_KEY, JSON.stringify(payload.user)),
-      storage.setItem(STORAGE_TOKENS_KEY, JSON.stringify(payload.tokens)),
-    ]);
+    const storageTasks = [storage.setItem(STORAGE_TOKENS_KEY, JSON.stringify(payload.tokens))];
+    if (payload.user) {
+      storageTasks.push(storage.setItem(STORAGE_USER_KEY, JSON.stringify(payload.user)));
+    } else {
+      storageTasks.push(storage.removeItem(STORAGE_USER_KEY));
+    }
+    await Promise.all(storageTasks);
   };
 
   const signIn = async ({ email, password }: { email: string; password: string }) => {
@@ -116,6 +121,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { ok: true };
   };
 
+  const refreshAccessToken = async () => {
+    if (!tokens?.refresh) {
+      return null;
+    }
+    if (refreshPromise) {
+      return refreshPromise;
+    }
+
+    refreshPromise = (async () => {
+      try {
+        const result = await apiRequest<{ access: string; refresh?: string }>('auth/refresh/', {
+          method: 'POST',
+          body: { refresh: tokens.refresh },
+        });
+
+        if (!result.ok || !result.data?.access) {
+          await persistAuth(null);
+          return null;
+        }
+
+        const nextTokens: AuthTokens = {
+          access: result.data.access,
+          refresh: result.data.refresh ?? tokens.refresh,
+        };
+        await persistAuth({ user, tokens: nextTokens });
+        return nextTokens.access;
+      } catch (error) {
+        await persistAuth(null);
+        return null;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+
+    return refreshPromise;
+  };
+
   const signOut = async () => {
     await persistAuth(null);
   };
@@ -129,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signInWithGoogle,
+        refreshAccessToken,
         signOut,
       }}
     >

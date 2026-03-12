@@ -85,7 +85,7 @@ export default function DashboardScreen() {
   const [breakdown, setBreakdown] = useState<CategoryBreakdownItem[]>([]);
   const [insights, setInsights] = useState<RecommendationItem[]>(fallbackInsights);
   const [isLoading, setIsLoading] = useState(false);
-  const { tokens } = useAuth();
+  const { tokens, refreshAccessToken } = useAuth();
   const accessToken = tokens?.access;
 
   useEffect(() => {
@@ -98,10 +98,24 @@ export default function DashboardScreen() {
     const fetchDashboard = async () => {
       setIsLoading(true);
       try {
+        const fetchWithRefresh = async <T,>(fetcher: (token: string) => Promise<ReturnType<typeof api.get<T>>>) => {
+          if (!accessToken) {
+            return fetcher('');
+          }
+          let result = await fetcher(accessToken);
+          if (result.status === 401) {
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+              result = await fetcher(newToken);
+            }
+          }
+          return result;
+        };
+
         const [summaryRes, breakdownRes, insightsRes] = await Promise.all([
-          api.get<DashboardSummary>('analytics/dashboard/', accessToken),
-          api.get<CategoryBreakdownItem[]>('analytics/category-breakdown/', accessToken),
-          api.get<RecommendationItem[]>('recommendations/', accessToken),
+          fetchWithRefresh((token) => api.get<DashboardSummary>('analytics/dashboard/', token)),
+          fetchWithRefresh((token) => api.get<CategoryBreakdownItem[]>('analytics/category-breakdown/', token)),
+          fetchWithRefresh((token) => api.get<RecommendationItem[]>('recommendations/', token)),
         ]);
 
         if (isMounted && summaryRes.ok && summaryRes.data) {
@@ -133,7 +147,7 @@ export default function DashboardScreen() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken]);
+  }, [accessToken, refreshAccessToken]);
 
   const budgetProgress = useMemo(() => {
     if (!breakdown.length) {

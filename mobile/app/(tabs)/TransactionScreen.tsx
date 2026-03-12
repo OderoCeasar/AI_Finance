@@ -127,7 +127,7 @@ export default function TransactionScreen() {
   const [formError, setFormError] = useState('');
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [filterCategoryOpen, setFilterCategoryOpen] = useState(false);
-  const { tokens } = useAuth();
+  const { tokens, refreshAccessToken } = useAuth();
   const accessToken = tokens?.access;
 
   useEffect(() => {
@@ -139,7 +139,13 @@ export default function TransactionScreen() {
 
     const fetchCategories = async () => {
       try {
-        const result = await api.get<CategoryOption[]>('categories/', accessToken);
+        let result = await api.get<CategoryOption[]>('categories/', accessToken);
+        if (result.status === 401) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            result = await api.get<CategoryOption[]>('categories/', newToken);
+          }
+        }
         if (isMounted && result.ok && result.data?.length) {
           setCategories(result.data);
         }
@@ -155,7 +161,7 @@ export default function TransactionScreen() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken]);
+  }, [accessToken, refreshAccessToken]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -178,10 +184,19 @@ export default function TransactionScreen() {
           query.append('month', filterMonth.slice(0, 7));
         }
 
-        const result = await api.get<{ results?: TransactionItem[] } | TransactionItem[]>(
+        let result = await api.get<{ results?: TransactionItem[] } | TransactionItem[]>(
           `transactions/?${query.toString()}`,
           accessToken,
         );
+        if (result.status === 401) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            result = await api.get<{ results?: TransactionItem[] } | TransactionItem[]>(
+              `transactions/?${query.toString()}`,
+              newToken,
+            );
+          }
+        }
         if (!isMounted) {
           return;
         }
@@ -208,7 +223,7 @@ export default function TransactionScreen() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, filterType, filterCategoryId, filterMonth]);
+  }, [accessToken, filterType, filterCategoryId, filterMonth, refreshAccessToken]);
 
   const selectedCategory = useMemo(() => {
     return categories.find((item) => item.id === categoryId) ?? null;
@@ -273,7 +288,7 @@ export default function TransactionScreen() {
 
     setIsSaving(true);
     try {
-      const result = await api.post<TransactionItem>(
+      let result = await api.post<TransactionItem>(
         'transactions/',
         {
           amount: amountValue,
@@ -284,6 +299,22 @@ export default function TransactionScreen() {
         },
         accessToken,
       );
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.post<TransactionItem>(
+            'transactions/',
+            {
+              amount: amountValue,
+              category_id: categoryId,
+              type: transactionType,
+              description: description.trim(),
+              date,
+            },
+            newToken,
+          );
+        }
+      }
       if (result.ok && result.data) {
         setTransactions((prev) => [result.data, ...prev]);
         setAmount('');

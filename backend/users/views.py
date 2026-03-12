@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import User
@@ -17,6 +18,7 @@ AUTH_REGISTERED_MESSAGE = "User registered successfully."
 AUTH_LOGIN_MESSAGE = "Login successful."
 AUTH_GOOGLE_LOGIN_MESSAGE = "Google sign-in successful."
 PROFILE_RETRIEVED_MESSAGE = "Profile retrieved successfully."
+TOKEN_REFRESH_MESSAGE = "Token refreshed successfully."
 GENERIC_ERROR_MESSAGE = "We could not process your request."
 
 
@@ -156,5 +158,34 @@ class GoogleSignInAPIView(APIView):
         response_data = {"user": UserProfileSerializer(user).data, "tokens": tokens}
         return Response(
             build_response(True, response_data, AUTH_GOOGLE_LOGIN_MESSAGE),
+            status=status.HTTP_200_OK,
+        )
+
+
+class RefreshTokenAPIView(APIView):
+    """Refresh a JWT access token using a refresh token."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """Return a fresh access token."""
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response(
+                build_response(False, None, "Refresh token is required."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            refresh = RefreshToken(refresh_token)
+        except TokenError:
+            return Response(
+                build_response(False, None, "Refresh token is invalid."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = {"access": str(refresh.access_token), "refresh": str(refresh)}
+        return Response(
+            build_response(True, data, TOKEN_REFRESH_MESSAGE),
             status=status.HTTP_200_OK,
         )

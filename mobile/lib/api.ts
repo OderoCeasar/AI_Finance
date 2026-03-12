@@ -71,6 +71,8 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<A
   };
 };
 
+export const apiRequest = request;
+
 export const api = {
   get: <T>(path: string, token?: string | null) => request<T>(path, { token }),
   post: <T>(path: string, body: unknown, token?: string | null) =>
