@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 import { api, apiRequest } from '@/lib/api';
 import { storage } from '@/lib/storage';
@@ -58,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const didSetAuth = useRef(false);
 
   useEffect(() => {
     const hydrate = async () => {
@@ -65,8 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         storage.getItem(STORAGE_USER_KEY),
         storage.getItem(STORAGE_TOKENS_KEY),
       ]);
-      setUser(parseStored<AuthUser>(storedUser));
-      setTokens(parseStored<AuthTokens>(storedTokens));
+      if (!didSetAuth.current) {
+        setUser(parseStored<AuthUser>(storedUser));
+        setTokens(parseStored<AuthTokens>(storedTokens));
+      }
       setIsReady(true);
     };
 
@@ -74,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistAuth = async (payload: AuthPayload | null) => {
+    didSetAuth.current = true;
     if (!payload) {
       await Promise.all([
         storage.removeItem(STORAGE_USER_KEY),

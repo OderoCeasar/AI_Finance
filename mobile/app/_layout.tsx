@@ -20,6 +20,8 @@ export default function RootLayout() {
           <Stack.Screen name="WelcomeScreen" options={{ headerShown: false }} />
           <Stack.Screen name="LoginScreen" options={{ headerShown: false }} />
           <Stack.Screen name="SignupScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="ForgotPasswordScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="ResetPasswordScreen" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>

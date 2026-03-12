@@ -5,8 +5,10 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import { Link } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -186,6 +188,30 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <Link href="/(tabs)/TransactionScreen" asChild>
+              <TouchableOpacity style={styles.quickCard}>
+                <Text style={styles.quickTitle}>Add Transaction</Text>
+                <Text style={styles.quickSubtitle}>Log income or expense</Text>
+              </TouchableOpacity>
+            </Link>
+            <Link href="/(tabs)/TransactionScreen" asChild>
+              <TouchableOpacity style={styles.quickCard}>
+                <Text style={styles.quickTitle}>View Transactions</Text>
+                <Text style={styles.quickSubtitle}>History & filters</Text>
+              </TouchableOpacity>
+            </Link>
+            <Link href="/(tabs)/ProfileScreen" asChild>
+              <TouchableOpacity style={styles.quickCard}>
+                <Text style={styles.quickTitle}>Profile</Text>
+                <Text style={styles.quickSubtitle}>Account settings</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>Financial Overview</Text>
           <View style={styles.balanceRow}>
             <Text style={styles.balanceLabel}>Total Balance</Text>
@@ -326,6 +352,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: palette.textPrimary,
     marginBottom: 12,
+  },
+  quickActions: {
+    gap: 12,
+  },
+  quickCard: {
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.2)',
+  },
+  quickTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: palette.textPrimary,
+    marginBottom: 4,
+  },
+  quickSubtitle: {
+    fontSize: 12,
+    color: palette.textSecondary,
   },
   balanceRow: {
     marginBottom: 16,

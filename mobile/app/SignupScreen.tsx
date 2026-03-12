@@ -11,14 +11,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
 import { AntDesign } from '@expo/vector-icons';
 import { useEffect } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { useGoogleAuth } from '@/lib/use-google-auth';
-
-WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get("window");
 
@@ -69,6 +68,7 @@ export default function SignupScreen() {
   };
 
   const googleAuth = useGoogleAuth({
+    redirectPath: 'SignupScreen',
     onSuccess: async (idToken) => {
       const result = await signInWithGoogle(idToken);
       if (result.ok) {
@@ -82,9 +82,23 @@ export default function SignupScreen() {
   useEffect(() => {
     if (googleAuth.error) {
       setFormError(googleAuth.error);
-      setIsGoogleLoading(false);
     }
   }, [googleAuth.error]);
+
+  useEffect(() => {
+    setIsGoogleLoading(googleAuth.isLoading);
+  }, [googleAuth.isLoading]);
+
+  const isGoogleInFlight = isGoogleLoading || googleAuth.isLoading;
+
+  if (isGoogleInFlight) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator color={palette.accentGreen} />
+        <Text style={styles.loadingText}>Signing you in…</Text>
+      </View>
+    );
+  }
 
   const handleSignup = async () => {
     setFormError('');
@@ -290,7 +304,6 @@ export default function SignupScreen() {
             activeOpacity={0.8}
             onPress={() => {
               setFormError('');
-              setIsGoogleLoading(true);
               googleAuth.prompt();
             }}
             disabled={isGoogleLoading || googleAuth.isLoading}
@@ -299,7 +312,11 @@ export default function SignupScreen() {
               <ActivityIndicator color={palette.textPrimary} />
             ) : (
               <>
-                <AntDesign name="google" size={24} color="#DB4437" />
+                <Image
+                  source={require('@/assets/images/image.png')}
+                  style={styles.googleIcon}
+                  resizeMode="contain"
+                />
                 <Text style={styles.socialText}>Sign up with Google</Text>
               </>
             )}
@@ -503,6 +520,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(100, 116, 139, 0.25)",
   },
+  googleIcon: {
+    width: 22,
+    height: 22,
+    marginRight: 10,
+  },
   socialIcon: {
     fontSize: 20,
     marginRight: 8,
@@ -525,5 +547,16 @@ const styles = StyleSheet.create({
     color: palette.cashBlue,
     fontSize: 14,
     fontWeight: "600",
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: palette.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    color: palette.textSecondary,
+    fontSize: 14,
   },
 });

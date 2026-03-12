@@ -115,4 +115,10 @@ SIMPLE_JWT = {
 
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
 
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:8081")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@ai-finance.local")
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+)
 

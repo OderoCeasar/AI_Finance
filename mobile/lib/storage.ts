@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const hasLocalStorage =
@@ -16,6 +17,10 @@ const getLocalStorage = () => {
 
 export const storage = {
   async getItem(key: string) {
+    if (Platform.OS === 'web') {
+      const store = getLocalStorage();
+      return store?.getItem(key) ?? null;
+    }
     try {
       return await SecureStore.getItemAsync(key);
     } catch (error) {
@@ -24,6 +29,11 @@ export const storage = {
     }
   },
   async setItem(key: string, value: string) {
+    if (Platform.OS === 'web') {
+      const store = getLocalStorage();
+      store?.setItem(key, value);
+      return;
+    }
     try {
       await SecureStore.setItemAsync(key, value);
       return;
@@ -33,6 +43,11 @@ export const storage = {
     }
   },
   async removeItem(key: string) {
+    if (Platform.OS === 'web') {
+      const store = getLocalStorage();
+      store?.removeItem(key);
+      return;
+    }
     try {
       await SecureStore.deleteItemAsync(key);
       return;

@@ -9,6 +9,7 @@ import {
   StatusBar,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -41,6 +42,7 @@ export default function LoginScreen() {
   const { signIn, signInWithGoogle } = useAuth();
 
   const googleAuth = useGoogleAuth({
+    redirectPath: 'LoginScreen',
     onSuccess: async (idToken) => {
       const result = await signInWithGoogle(idToken);
       if (result.ok) {
@@ -94,9 +96,23 @@ export default function LoginScreen() {
   useEffect(() => {
     if (googleAuth.error) {
       setFormError(googleAuth.error);
-      setIsGoogleLoading(false);
     }
   }, [googleAuth.error]);
+
+  useEffect(() => {
+    setIsGoogleLoading(googleAuth.isLoading);
+  }, [googleAuth.isLoading]);
+
+  const isGoogleInFlight = isGoogleLoading || googleAuth.isLoading;
+
+  if (isGoogleInFlight) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator color={palette.accentGreen} />
+        <Text style={styles.loadingText}>Signing you in…</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -196,7 +212,7 @@ export default function LoginScreen() {
                 <Text style={styles.checkboxLabel}>Remember me</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/ForgotPasswordScreen')}>
                 <Text style={styles.forgotText}>Forgot password?</Text>
               </TouchableOpacity>
             </View>
@@ -233,7 +249,6 @@ export default function LoginScreen() {
             activeOpacity={0.8}
             onPress={() => {
               setFormError('');
-              setIsGoogleLoading(true);
               googleAuth.prompt();
             }}
             disabled={isGoogleLoading || googleAuth.isLoading}
@@ -242,7 +257,11 @@ export default function LoginScreen() {
               <ActivityIndicator color={palette.textPrimary} />
             ) : (
               <>
-                <AntDesign name="google" size={24} color="#DB4437" />
+                <Image
+                  source={require('@/assets/images/image.png')}
+                  style={styles.googleIcon}
+                  resizeMode="contain"
+                />
                 <Text style={styles.socialText}>Sign in with Google</Text>
               </>
             )}
@@ -498,6 +517,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(100, 116, 139, 0.25)',
   },
+  googleIcon: {
+    width: 22,
+    height: 22,
+    marginRight: 10,
+  },
   socialIcon: {
     fontSize: 20,
     marginRight: 8,
@@ -520,5 +544,16 @@ const styles = StyleSheet.create({
     color: palette.cashBlue,
     fontSize: 14,
     fontWeight: '600',
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: palette.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: palette.textSecondary,
+    fontSize: 14,
   },
 });

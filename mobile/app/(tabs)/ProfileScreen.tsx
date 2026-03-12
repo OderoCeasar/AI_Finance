@@ -108,13 +108,43 @@ export default function ProfileScreen() {
             <>
               <Text style={styles.profileName}>{profile?.name ?? 'Your Name'}</Text>
               <Text style={styles.profileEmail}>{profile?.email ?? 'your.email@example.com'}</Text>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Member since</Text>
-                <Text style={styles.metaValue}>{profile?.date_joined ?? '--'}</Text>
-              </View>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </>
           )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <View style={styles.preferenceList}>
+            <TouchableOpacity style={styles.preferenceItem}>
+              <View>
+                <Text style={styles.preferenceTitle}>Email Settings</Text>
+                <Text style={styles.preferenceSubtitle}>Manage newsletters and alerts</Text>
+              </View>
+              <Text style={styles.preferenceChevron}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.preferenceItem}>
+              <View>
+                <Text style={styles.preferenceTitle}>Device</Text>
+                <Text style={styles.preferenceSubtitle}>Trusted devices and sessions</Text>
+              </View>
+              <Text style={styles.preferenceChevron}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.preferenceItem}>
+              <View>
+                <Text style={styles.preferenceTitle}>Notification Settings</Text>
+                <Text style={styles.preferenceSubtitle}>Push and in-app preferences</Text>
+              </View>
+              <Text style={styles.preferenceChevron}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.preferenceItem, styles.preferenceItemLast]}>
+              <View>
+                <Text style={styles.preferenceTitle}>Security</Text>
+                <Text style={styles.preferenceSubtitle}>Password and authentication</Text>
+              </View>
+              <Text style={styles.preferenceChevron}>›</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -161,6 +191,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 2,
+    marginBottom: 16,
   },
   profileName: {
     fontSize: 20,
@@ -173,21 +204,45 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     marginBottom: 12,
   },
-  metaRow: {
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: palette.textPrimary,
+    marginBottom: 12,
+  },
+  preferenceList: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.16)',
+    overflow: 'hidden',
+  },
+  preferenceItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(100, 116, 139, 0.12)',
-    paddingTop: 12,
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(100, 116, 139, 0.12)',
+    backgroundColor: palette.card,
   },
-  metaLabel: {
-    color: palette.textSecondary,
-    fontSize: 12,
+  preferenceItemLast: {
+    borderBottomWidth: 0,
   },
-  metaValue: {
-    color: palette.textPrimary,
-    fontSize: 12,
+  preferenceTitle: {
+    fontSize: 14,
     fontWeight: '600',
+    color: palette.textPrimary,
+    marginBottom: 4,
+  },
+  preferenceSubtitle: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  preferenceChevron: {
+    fontSize: 18,
+    color: palette.textSecondary,
+    marginLeft: 12,
   },
   errorText: {
     color: palette.cashBlue,
@@ -199,7 +254,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutButton: {
-    marginTop: 18,
     backgroundColor: palette.cashBlue,
     borderRadius: 12,
     paddingVertical: 14,

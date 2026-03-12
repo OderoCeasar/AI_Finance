@@ -1,7 +1,7 @@
 import React from 'react';
 
-import DashboardScreen from './DashboardScreen';
+import HomeScreen from '@/screens/HomeScreen';
 
-export default function HomeScreen() {
-  return <DashboardScreen />;
+export default function HomeRoute() {
+  return <HomeScreen />;
 }
