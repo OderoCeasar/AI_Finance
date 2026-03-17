@@ -10,7 +10,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 
-import BottomNav from '@/components/bottom-nav';
 
 const { width, height } = Dimensions.get('window');
 
@@ -47,7 +46,7 @@ export default function WelcomeScreen() {
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>AI_Finance</Text>
+          <Text style={styles.logoText}>OptiFi</Text>
           <Text style={styles.tagline}>Smart Money Management</Text>
         </View>
 
@@ -80,7 +79,6 @@ export default function WelcomeScreen() {
           </Text>
         </View>
       </View>
-      <BottomNav />
     </View>
   );
 }

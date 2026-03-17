@@ -93,7 +93,7 @@ export default function ResetPasswordScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.brandName}>AI_Finance</Text>
+        <Text style={styles.brandName}>OptiFi</Text>
       </View>
 
       <ScrollView

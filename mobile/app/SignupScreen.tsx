@@ -18,7 +18,6 @@ import { useEffect } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { useGoogleAuth } from '@/lib/use-google-auth';
-import BottomNav from '@/components/bottom-nav';
 
 const { width } = Dimensions.get("window");
 
@@ -171,7 +170,7 @@ export default function SignupScreen() {
           <View style={styles.logo}>
             <Text style={styles.logoIcon}>✨</Text>
           </View>
-          <Text style={styles.brandName}>AI_Finance</Text>
+          <Text style={styles.brandName}>OptiFi</Text>
         </View>
       </View>
 
@@ -332,7 +331,6 @@ export default function SignupScreen() {
           </View>
         </View>
       </ScrollView>
-      <BottomNav />
     </View>
   );
 }

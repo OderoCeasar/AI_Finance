@@ -37,7 +37,7 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.heroTitle}>AI_Finance</Text>
+            <Text style={styles.heroTitle}>OptiFi</Text>
             <Text style={styles.heroSubtitle}>Your personal money cockpit</Text>
           </LinearGradient>
         </View>
