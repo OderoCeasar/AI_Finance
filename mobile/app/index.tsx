@@ -9,5 +9,5 @@ export default function Index() {
     return null;
   }
 
-  return <Redirect href={tokens?.access ? '/(tabs)' : '/WelcomeScreen'} />;
+  return <Redirect href={tokens?.access ? '/Dashboard' : '/WelcomeScreen'} />;
 }

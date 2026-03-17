@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
+import BottomNav from '@/components/bottom-nav';
 
 const { width } = Dimensions.get('window');
 
@@ -153,6 +154,7 @@ export default function ResetPasswordScreen() {
           </View>
         </View>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   formContainer: {
     paddingHorizontal: 24,

@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from transactions.models import Category, MonthlySummary, Transaction
+from transactions.models import Budget, Category, MonthlySummary, Transaction
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -22,7 +22,11 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     category = CategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), write_only=True, required=False, allow_null=True
+        source="category",
+        queryset=Category.objects.all(),
+        write_only=True,
+        required=False,
+        allow_null=True,
     )
 
     class Meta:
@@ -75,3 +79,30 @@ class MonthlySummarySerializer(serializers.ModelSerializer):
         if obj.total_income == 0:
             return Decimal("0.00")
         return round((obj.savings / obj.total_income) * Decimal("100.00"), 2)
+
+
+class BudgetSerializer(serializers.ModelSerializer):
+    """Serialize monthly budget allocations."""
+
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        source="category",
+        queryset=Category.objects.all(),
+        write_only=True,
+    )
+
+    class Meta:
+        model = Budget
+        fields = ["id", "user", "category", "category_id", "month", "amount", "created_at"]
+        read_only_fields = ["id", "user", "created_at", "category"]
+
+    def validate_month(self, value):
+        """Normalize month values to the first day of the month."""
+        return value.replace(day=1)
+
+    def validate_category_id(self, value):
+        """Ensure the category is global or owned by the requesting user."""
+        request = self.context.get("request")
+        if request and value and value.user and value.user != request.user:
+            raise serializers.ValidationError("You can only budget for your own categories.")
+        return value

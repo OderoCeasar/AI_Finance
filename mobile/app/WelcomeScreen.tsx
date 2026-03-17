@@ -10,6 +10,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 
+import BottomNav from '@/components/bottom-nav';
+
 const { width, height } = Dimensions.get('window');
 
 const palette = {
@@ -78,6 +80,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
       </View>
+      <BottomNav />
     </View>
   );
 }
@@ -125,6 +128,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
+    paddingBottom: 120,
   },
   logoContainer: {
     alignItems: 'center',

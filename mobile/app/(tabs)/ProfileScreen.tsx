@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import BottomNav from '@/components/bottom-nav';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -151,6 +152,7 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -162,7 +164,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     backgroundColor: palette.sidebar,

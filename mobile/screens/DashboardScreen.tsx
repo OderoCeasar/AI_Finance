@@ -5,6 +5,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -12,6 +13,7 @@ import { Link } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import BottomNav from '@/components/bottom-nav';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -42,6 +44,32 @@ type RecommendationItem = {
   id?: number;
   message: string;
   priority?: string;
+};
+
+type CategoryOption = {
+  id: number;
+  name: string;
+};
+
+type BudgetItem = {
+  id: number;
+  amount: number | string;
+  month: string;
+  category: CategoryOption;
+};
+
+type TrendItem = {
+  month: string;
+  income: number | string;
+  expenses: number | string;
+  savings: number | string;
+};
+
+type PredictionItem = {
+  id?: number;
+  predicted_expense: number | string;
+  month: string;
+  created_at?: string;
 };
 
 const fallbackSummary: DashboardSummary = {
@@ -82,13 +110,29 @@ const formatKes = (value: number | string) => {
   }
 };
 
+const normalizeAmountInput = (value: string) =>
+  value.replace(/[^0-9.]/g, '');
+
 export default function DashboardScreen() {
   const [summary, setSummary] = useState<DashboardSummary>(fallbackSummary);
   const [breakdown, setBreakdown] = useState<CategoryBreakdownItem[]>([]);
   const [insights, setInsights] = useState<RecommendationItem[]>(fallbackInsights);
+  const [trend, setTrend] = useState<TrendItem[]>([]);
+  const [prediction, setPrediction] = useState<PredictionItem | null>(null);
+  const [predictionError, setPredictionError] = useState('');
+  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
+  const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [budgetCategoryId, setBudgetCategoryId] = useState<number | null>(null);
+  const [budgetAmount, setBudgetAmount] = useState('');
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetError, setBudgetError] = useState('');
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { tokens, refreshAccessToken } = useAuth();
   const accessToken = tokens?.access;
+  const currentMonth = new Date().toLocaleDateString('en-CA').slice(0, 7);
 
   useEffect(() => {
     if (!accessToken) {
@@ -114,10 +158,22 @@ export default function DashboardScreen() {
           return result;
         };
 
-        const [summaryRes, breakdownRes, insightsRes] = await Promise.all([
+        const [
+          summaryRes,
+          breakdownRes,
+          insightsRes,
+          trendRes,
+          predictionRes,
+          categoriesRes,
+          budgetsRes,
+        ] = await Promise.all([
           fetchWithRefresh((token) => api.get<DashboardSummary>('analytics/dashboard/', token)),
           fetchWithRefresh((token) => api.get<CategoryBreakdownItem[]>('analytics/category-breakdown/', token)),
           fetchWithRefresh((token) => api.get<RecommendationItem[]>('recommendations/', token)),
+          fetchWithRefresh((token) => api.get<TrendItem[]>('analytics/spending-trend/', token)),
+          fetchWithRefresh((token) => api.get<PredictionItem>('predictions/latest/', token)),
+          fetchWithRefresh((token) => api.get<CategoryOption[]>('categories/', token)),
+          fetchWithRefresh((token) => api.get<BudgetItem[]>(`budgets/?month=${currentMonth}`, token)),
         ]);
 
         if (isMounted && summaryRes.ok && summaryRes.data) {
@@ -131,11 +187,40 @@ export default function DashboardScreen() {
         if (isMounted && insightsRes.ok && insightsRes.data?.length) {
           setInsights(insightsRes.data);
         }
+
+        if (isMounted && trendRes.ok && trendRes.data) {
+          setTrend(trendRes.data);
+        }
+
+        if (isMounted) {
+          if (predictionRes.ok && predictionRes.data) {
+            setPrediction(predictionRes.data);
+            setPredictionError('');
+          } else {
+            setPrediction(null);
+            if (predictionRes.status !== 404) {
+              setPredictionError(predictionRes.message ?? 'Unable to load prediction.');
+            } else {
+              setPredictionError('');
+            }
+          }
+        }
+
+        if (isMounted && categoriesRes.ok && categoriesRes.data) {
+          setCategories(categoriesRes.data);
+        }
+
+        if (isMounted && budgetsRes.ok && budgetsRes.data) {
+          setBudgets(budgetsRes.data);
+        }
       } catch (error) {
         if (isMounted) {
           setSummary(fallbackSummary);
           setBreakdown([]);
           setInsights(fallbackInsights);
+          setTrend([]);
+          setPrediction(null);
+          setBudgets([]);
         }
       } finally {
         if (isMounted) {
@@ -149,7 +234,147 @@ export default function DashboardScreen() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, refreshAccessToken]);
+  }, [accessToken, refreshAccessToken, currentMonth]);
+
+  const handleGenerateRecommendations = async () => {
+    if (!accessToken || isGeneratingRecommendations) {
+      return;
+    }
+    setIsGeneratingRecommendations(true);
+    try {
+      let result = await api.post<RecommendationItem[]>('recommendations/generate/', {}, accessToken);
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.post<RecommendationItem[]>('recommendations/generate/', {}, newToken);
+        }
+      }
+      if (result.ok && result.data?.length) {
+        setInsights(result.data);
+      }
+    } finally {
+      setIsGeneratingRecommendations(false);
+    }
+  };
+
+  const handleGenerateForecast = async () => {
+    if (!accessToken || isGeneratingForecast) {
+      return;
+    }
+    setIsGeneratingForecast(true);
+    setPredictionError('');
+    try {
+      let result = await api.post<PredictionItem>('predictions/forecast/', {}, accessToken);
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.post<PredictionItem>('predictions/forecast/', {}, newToken);
+        }
+      }
+      if (result.ok && result.data) {
+        setPrediction(result.data);
+      } else {
+        setPredictionError(result.message ?? 'Unable to generate forecast.');
+      }
+    } catch (error) {
+      setPredictionError('Unable to generate forecast right now.');
+    } finally {
+      setIsGeneratingForecast(false);
+    }
+  };
+
+  const selectedBudgetCategory = useMemo(
+    () => categories.find((item) => item.id === budgetCategoryId) ?? null,
+    [categories, budgetCategoryId],
+  );
+
+  const spentByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    breakdown.forEach((item) => {
+      map.set(item.category.toLowerCase(), toNumber(item.total));
+    });
+    return map;
+  }, [breakdown]);
+
+  const handleSaveBudget = async () => {
+    setBudgetError('');
+    if (!budgetCategoryId) {
+      setBudgetError('Select a category to budget for.');
+      return;
+    }
+    const amountValue = Number(normalizeAmountInput(budgetAmount));
+    if (!amountValue || amountValue <= 0) {
+      setBudgetError('Enter a valid budget amount.');
+      return;
+    }
+    if (!accessToken) {
+      setBudgetError('Sign in to save budgets.');
+      return;
+    }
+
+    setIsSavingBudget(true);
+    const monthValue = `${currentMonth}-01`;
+    const existing = budgets.find(
+      (budget) =>
+        budget.category.id === budgetCategoryId &&
+        budget.month.startsWith(currentMonth),
+    );
+    const payload = {
+      category_id: budgetCategoryId,
+      month: monthValue,
+      amount: amountValue,
+    };
+    try {
+      let result = existing
+        ? await api.patch<BudgetItem>(`budgets/${existing.id}/`, payload, accessToken)
+        : await api.post<BudgetItem>('budgets/', payload, accessToken);
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = existing
+            ? await api.patch<BudgetItem>(`budgets/${existing.id}/`, payload, newToken)
+            : await api.post<BudgetItem>('budgets/', payload, newToken);
+        }
+      }
+      if (result.ok && result.data) {
+        setBudgets((prev) => {
+          if (existing) {
+            return prev.map((item) => (item.id === existing.id ? result.data : item));
+          }
+          return [result.data, ...prev];
+        });
+        setBudgetAmount('');
+      } else {
+        setBudgetError(result.message ?? 'Unable to save budget.');
+      }
+    } catch (error) {
+      setBudgetError('Unable to save budget right now.');
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
+
+  const handleDeleteBudget = async (id: number) => {
+    if (!accessToken) {
+      return;
+    }
+    try {
+      let result = await api.delete(`budgets/${id}/`, accessToken);
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.delete(`budgets/${id}/`, newToken);
+        }
+      }
+      if (result.ok) {
+        setBudgets((prev) => prev.filter((item) => item.id !== id));
+      } else {
+        setBudgetError(result.message ?? 'Unable to delete budget.');
+      }
+    } catch (error) {
+      setBudgetError('Unable to delete budget right now.');
+    }
+  };
 
   const budgetProgress = useMemo(() => {
     if (!breakdown.length) {
@@ -208,6 +433,12 @@ export default function DashboardScreen() {
                 <Text style={styles.quickSubtitle}>Account settings</Text>
               </TouchableOpacity>
             </Link>
+            <Link href="/AllScreens" asChild>
+              <TouchableOpacity style={styles.quickCard}>
+                <Text style={styles.quickTitle}>All Screens</Text>
+                <Text style={styles.quickSubtitle}>Navigation hub</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
         </View>
 
@@ -240,6 +471,127 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>Budgets ({currentMonth})</Text>
+          <View style={styles.budgetForm}>
+            <Text style={styles.label}>Category</Text>
+            <TouchableOpacity
+              style={styles.dropdownTrigger}
+              onPress={() => setBudgetOpen((prev) => !prev)}
+            >
+              <Text style={styles.dropdownValue}>
+                {selectedBudgetCategory?.name ?? 'Select category'}
+              </Text>
+            </TouchableOpacity>
+            {budgetOpen ? (
+              <View style={styles.dropdownList}>
+                {categories.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setBudgetCategoryId(item.id);
+                      setBudgetOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{item.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+
+            <Text style={styles.label}>Monthly Budget Amount</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 8,000"
+              placeholderTextColor={palette.textSecondary}
+              keyboardType="numeric"
+              value={budgetAmount}
+              onChangeText={(value) => setBudgetAmount(normalizeAmountInput(value))}
+            />
+            {budgetError ? <Text style={styles.errorText}>{budgetError}</Text> : null}
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSaveBudget}
+              disabled={isSavingBudget}
+            >
+              {isSavingBudget ? (
+                <ActivityIndicator color={palette.textPrimary} />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Budget</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.budgetList}>
+            {budgets.length ? (
+              budgets.map((budget) => {
+                const limit = toNumber(budget.amount);
+                const spent = spentByCategory.get(budget.category.name.toLowerCase()) ?? 0;
+                const remaining = limit - spent;
+                const percent = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+                const isOver = spent > limit;
+                return (
+                  <View key={budget.id} style={styles.budgetRow}>
+                    <View style={styles.budgetHeader}>
+                      <Text style={styles.budgetCategory}>{budget.category.name}</Text>
+                      <TouchableOpacity
+                        style={styles.budgetDelete}
+                        onPress={() => handleDeleteBudget(budget.id)}
+                      >
+                        <Text style={styles.budgetDeleteText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.budgetMeta}>
+                      <Text style={styles.budgetValue}>Budget: {formatKes(limit)}</Text>
+                      <Text style={[styles.budgetValue, isOver && styles.budgetOver]}>
+                        Spent: {formatKes(spent)}
+                      </Text>
+                      <Text style={styles.budgetValue}>
+                        Remaining: {formatKes(remaining)}
+                      </Text>
+                    </View>
+                    <View style={styles.progressTrack}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${percent}%`,
+                            backgroundColor: isOver ? '#EF4444' : palette.accentGreen,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyText}>No budgets set for this month.</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={[styles.cardTitle, styles.cardTitleTight]}>Spending Trend</Text>
+            <Text style={styles.cardHint}>Last 6 months</Text>
+          </View>
+          {trend.length ? (
+            trend.map((item) => (
+              <View key={item.month} style={styles.trendRow}>
+                <Text style={styles.trendMonth}>{item.month}</Text>
+                <View style={styles.trendValues}>
+                  <Text style={styles.trendIncome}>{formatKes(item.income)}</Text>
+                  <Text style={styles.trendExpense}>{formatKes(item.expenses)}</Text>
+                  <Text style={styles.trendSavings}>{formatKes(item.savings)}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No trend data yet.</Text>
+          )}
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>Budget Progress</Text>
           {budgetProgress.map((item) => (
             <View key={item.category} style={styles.progressRow}>
@@ -263,13 +615,52 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>AI Insights</Text>
+          <View style={styles.cardHeaderRow}>
+            <Text style={[styles.cardTitle, styles.cardTitleTight]}>AI Insights</Text>
+            <TouchableOpacity
+              style={styles.actionPill}
+              onPress={handleGenerateRecommendations}
+              disabled={isGeneratingRecommendations}
+            >
+              {isGeneratingRecommendations ? (
+                <ActivityIndicator color={palette.textPrimary} />
+              ) : (
+                <Text style={styles.actionPillText}>Refresh</Text>
+              )}
+            </TouchableOpacity>
+          </View>
           {insights.slice(0, 3).map((insight, index) => (
             <View key={`${insight.message}-${index}`} style={styles.insightRow}>
               <View style={styles.insightDot} />
               <Text style={styles.insightText}>{insight.message}</Text>
             </View>
           ))}
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={[styles.cardTitle, styles.cardTitleTight]}>Next Month Forecast</Text>
+            <TouchableOpacity
+              style={styles.actionPill}
+              onPress={handleGenerateForecast}
+              disabled={isGeneratingForecast}
+            >
+              {isGeneratingForecast ? (
+                <ActivityIndicator color={palette.textPrimary} />
+              ) : (
+                <Text style={styles.actionPillText}>Generate</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          {prediction ? (
+            <View style={styles.predictionRow}>
+              <Text style={styles.predictionLabel}>Predicted expenses for {prediction.month}</Text>
+              <Text style={styles.predictionValue}>{formatKes(prediction.predicted_expense)}</Text>
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No forecast generated yet.</Text>
+          )}
+          {predictionError ? <Text style={styles.errorText}>{predictionError}</Text> : null}
         </View>
       </ScrollView>
 
@@ -278,6 +669,7 @@ export default function DashboardScreen() {
           <ActivityIndicator size="large" color={palette.accentGreen} />
         </View>
       ) : null}
+      <BottomNav />
     </View>
   );
 }
@@ -293,7 +685,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     backgroundColor: palette.sidebar,
@@ -353,6 +745,135 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
     marginBottom: 12,
   },
+  cardTitleTight: {
+    marginBottom: 0,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  cardHint: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  actionPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.5)',
+  },
+  actionPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: palette.textPrimary,
+  },
+  label: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.25)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: palette.textPrimary,
+    backgroundColor: palette.card,
+    marginBottom: 12,
+  },
+  dropdownTrigger: {
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.25)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: palette.card,
+    marginBottom: 12,
+  },
+  dropdownValue: {
+    color: palette.textPrimary,
+    fontSize: 14,
+  },
+  dropdownList: {
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.25)',
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: palette.card,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(100, 116, 139, 0.12)',
+  },
+  dropdownItemText: {
+    color: palette.textPrimary,
+  },
+  saveButton: {
+    backgroundColor: palette.accentGreen,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: palette.textPrimary,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  budgetForm: {
+    marginBottom: 16,
+  },
+  budgetList: {
+    gap: 12,
+  },
+  budgetRow: {
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.2)',
+    borderRadius: 14,
+    padding: 12,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  budgetCategory: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: palette.textPrimary,
+  },
+  budgetDelete: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  budgetDeleteText: {
+    color: '#B91C1C',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  budgetMeta: {
+    gap: 4,
+    marginBottom: 10,
+  },
+  budgetValue: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  budgetOver: {
+    color: '#B91C1C',
+    fontWeight: '700',
+  },
   quickActions: {
     gap: 12,
   },
@@ -390,6 +911,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(100, 116, 139, 0.12)',
+  },
+  trendMonth: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: palette.textPrimary,
+  },
+  trendValues: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  trendIncome: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: palette.mpesaGreen,
+  },
+  trendExpense: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: palette.cashBlue,
+  },
+  trendSavings: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: palette.textPrimary,
   },
   metricItem: {
     width: '48%',
@@ -459,6 +1012,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: palette.textSecondary,
     lineHeight: 20,
+  },
+  predictionRow: {
+    gap: 8,
+  },
+  predictionLabel: {
+    fontSize: 13,
+    color: palette.textSecondary,
+  },
+  predictionValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: palette.textPrimary,
+  },
+  emptyText: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  errorText: {
+    fontSize: 12,
+    color: palette.cashBlue,
+    marginTop: 6,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

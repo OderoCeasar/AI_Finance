@@ -10,6 +10,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
+import BottomNav from '@/components/bottom-nav';
+
 const palette = {
   accentGreen: '#4ADE80',
   sidebar: '#1E293B',
@@ -66,6 +68,13 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.shortcutCard}
+              onPress={() => router.push('/AllScreens')}
+            >
+              <Text style={styles.shortcutTitle}>All Screens</Text>
+              <Text style={styles.shortcutMeta}>Navigation hub</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.shortcutCard}
               onPress={() => router.push('/(tabs)/ProfileScreen')}
             >
               <Text style={styles.shortcutTitle}>Profile</Text>
@@ -75,6 +84,7 @@ export default function HomeScreen() {
         </View>
 
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -86,7 +96,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   hero: {
     borderRadius: 20,

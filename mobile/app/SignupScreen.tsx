@@ -18,6 +18,7 @@ import { useEffect } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { useGoogleAuth } from '@/lib/use-google-auth';
+import BottomNav from '@/components/bottom-nav';
 
 const { width } = Dimensions.get("window");
 
@@ -72,7 +73,7 @@ export default function SignupScreen() {
     onSuccess: async (idToken) => {
       const result = await signInWithGoogle(idToken);
       if (result.ok) {
-        router.replace('/(tabs)');
+        router.replace('/Dashboard');
         return;
       }
       throw new Error(result.error ?? 'Google sign-in failed.');
@@ -127,7 +128,7 @@ export default function SignupScreen() {
     });
     setIsLoading(false);
     if (result.ok) {
-      router.replace("/(tabs)");
+      router.replace('/Dashboard');
       return;
     }
     const fieldErrors = formatErrors(result.errors);
@@ -331,6 +332,7 @@ export default function SignupScreen() {
           </View>
         </View>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -407,7 +409,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   formContainer: {
     paddingHorizontal: 24,

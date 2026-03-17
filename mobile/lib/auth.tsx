@@ -77,8 +77,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistAuth = async (payload: AuthPayload | null) => {
+    console.log('[Auth] persistAuth called:', { hasPayload: !!payload, hasUser: !!payload?.user, hasTokens: !!payload?.tokens });
     didSetAuth.current = true;
     if (!payload) {
+      console.log('[Auth] Clearing auth (no payload)');
       await Promise.all([
         storage.removeItem(STORAGE_USER_KEY),
         storage.removeItem(STORAGE_TOKENS_KEY),
@@ -88,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    console.log('[Auth] Setting user and tokens in state');
     setUser(payload.user);
     setTokens(payload.tokens);
     const storageTasks = [storage.setItem(STORAGE_TOKENS_KEY, JSON.stringify(payload.tokens))];
@@ -96,24 +99,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       storageTasks.push(storage.removeItem(STORAGE_USER_KEY));
     }
+    console.log('[Auth] Saving to storage...');
     await Promise.all(storageTasks);
+    console.log('[Auth] Auth persisted successfully');
   };
 
   const signIn = async ({ email, password }: { email: string; password: string }) => {
+    console.log('[Auth] Attempting login with:', { email });
     const result = await api.post<AuthPayload>('auth/login/', { email, password });
+    console.log('[Auth] Login result:', { ok: result.ok, status: result.status, message: result.message, hasData: !!result.data });
     if (!result.ok || !result.data) {
+      console.log('[Auth] Login failed:', result.message);
       return { ok: false, error: result.message ?? 'Login failed.', errors: result.errors };
     }
+    console.log('[Auth] Login successful, persisting auth...');
     await persistAuth(result.data);
+    console.log('[Auth] Auth persisted, tokens:', !!result.data.tokens);
     return { ok: true };
   };
 
   const signUp = async ({ name, email, password }: { name: string; email: string; password: string }) => {
+    console.log('[Auth] Attempting signup with:', { name, email });
     const result = await api.post<AuthPayload>('auth/register/', { name, email, password });
+    console.log('[Auth] Signup result:', { ok: result.ok, status: result.status, message: result.message, hasData: !!result.data });
     if (!result.ok || !result.data) {
+      console.log('[Auth] Signup failed:', result.message);
       return { ok: false, error: result.message ?? 'Registration failed.', errors: result.errors };
     }
+    console.log('[Auth] Signup successful, persisting auth...');
     await persistAuth(result.data);
+    console.log('[Auth] Auth persisted, tokens:', !!result.data.tokens);
     return { ok: true };
   };
 

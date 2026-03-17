@@ -11,13 +11,22 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from transactions.models import Category, Transaction
-from transactions.serializers import CategorySerializer, MonthlySummarySerializer, TransactionSerializer
+from transactions.models import Budget, Category, Transaction
+from transactions.serializers import (
+    BudgetSerializer,
+    CategorySerializer,
+    MonthlySummarySerializer,
+    TransactionSerializer,
+)
 from transactions.services import categorize_transaction, initialize_global_categories, update_or_create_monthly_summary
 
 
 CATEGORY_LIST_MESSAGE = "Categories retrieved successfully."
 CATEGORY_CREATE_MESSAGE = "Category created successfully."
+BUDGET_LIST_MESSAGE = "Budgets retrieved successfully."
+BUDGET_CREATE_MESSAGE = "Budget created successfully."
+BUDGET_UPDATE_MESSAGE = "Budget updated successfully."
+BUDGET_DELETE_MESSAGE = "Budget deleted successfully."
 TRANSACTION_LIST_MESSAGE = "Transactions retrieved successfully."
 TRANSACTION_CREATE_MESSAGE = "Transaction created successfully."
 TRANSACTION_RETRIEVE_MESSAGE = "Transaction retrieved successfully."
@@ -41,6 +50,124 @@ def parse_month_string(month_str):
     except (TypeError, ValueError):
         return None
     return parsed.replace(day=1)
+
+
+class BudgetViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """CRUD endpoints for authenticated user budgets."""
+
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return user-scoped budgets with optional filters."""
+        queryset = (
+            Budget.objects.select_related("category", "user")
+            .filter(user=self.request.user)
+            .order_by("-month", "category__name")
+        )
+
+        month = self.request.query_params.get("month")
+        category = self.request.query_params.get("category")
+
+        if month:
+            month_start = parse_month_string(month)
+            if month_start:
+                queryset = queryset.filter(month=month_start)
+        if category:
+            queryset = queryset.filter(category_id=category)
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        """List budgets for the current user."""
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            build_response(True, serializer.data, BUDGET_LIST_MESSAGE),
+            status=status.HTTP_200_OK,
+        )
+
+    def create(self, request, *args, **kwargs):
+        """Create a new budget entry."""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                build_response(False, serializer.errors, VALIDATION_FAILED_MESSAGE),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                budget = serializer.save(user=request.user)
+        except DatabaseError:
+            return Response(
+                build_response(False, None, GENERIC_ERROR_MESSAGE),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            build_response(True, self.get_serializer(budget).data, BUDGET_CREATE_MESSAGE),
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        """Update an existing budget."""
+        partial = kwargs.pop("partial", False)
+        try:
+            instance = self.get_object()
+        except Http404:
+            return Response(
+                build_response(False, None, NOT_FOUND_MESSAGE),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if not serializer.is_valid():
+            return Response(
+                build_response(False, serializer.errors, VALIDATION_FAILED_MESSAGE),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                budget = serializer.save()
+        except DatabaseError:
+            return Response(
+                build_response(False, None, GENERIC_ERROR_MESSAGE),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            build_response(True, self.get_serializer(budget).data, BUDGET_UPDATE_MESSAGE),
+            status=status.HTTP_200_OK,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a budget."""
+        try:
+            instance = self.get_object()
+        except Http404:
+            return Response(
+                build_response(False, None, NOT_FOUND_MESSAGE),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            with transaction.atomic():
+                instance.delete()
+        except DatabaseError:
+            return Response(
+                build_response(False, None, GENERIC_ERROR_MESSAGE),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            build_response(True, None, BUDGET_DELETE_MESSAGE),
+            status=status.HTTP_200_OK,
+        )
 
 
 class CategoryListCreateAPIView(APIView):
@@ -151,7 +278,7 @@ class TransactionViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        category = serializer.validated_data.get("category_id")
+        category = serializer.validated_data.get("category")
         if category is None:
             category = categorize_transaction(
                 serializer.validated_data.get("description", ""), request.user
@@ -205,7 +332,7 @@ class TransactionViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        category = serializer.validated_data.get("category_id")
+        category = serializer.validated_data.get("category")
         if category is None:
             category = categorize_transaction(serializer.validated_data.get("description", ""), request.user)
 

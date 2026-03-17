@@ -58,6 +58,28 @@ class Transaction(models.Model):
         return f"{self.user.email} - {self.type} - {self.amount}"
 
 
+class Budget(models.Model):
+    """Monthly budget allocation per category for a user."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="budgets")
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="budgets")
+    month = models.DateField()
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-month", "category__name"]
+        unique_together = ("user", "category", "month")
+
+    def __str__(self):
+        """Return a human-readable budget identifier."""
+        return f"{self.user.email} - {self.category.name} - {self.month.strftime('%Y-%m')}"
+
+
 class MonthlySummary(models.Model):
     """Monthly rollup for income, expense, and savings values."""
 
