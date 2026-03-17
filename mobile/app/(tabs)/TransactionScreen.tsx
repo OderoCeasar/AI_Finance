@@ -13,6 +13,7 @@ import { AntDesign } from '@expo/vector-icons';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import BottomNav from '@/components/bottom-nav';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -124,11 +125,40 @@ export default function TransactionScreen() {
   const [filterMonth, setFilterMonth] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [formError, setFormError] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryError, setCategoryError] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [filterCategoryOpen, setFilterCategoryOpen] = useState(false);
   const { tokens, refreshAccessToken } = useAuth();
   const accessToken = tokens?.access;
+
+  const formatErrors = (errors: unknown) => {
+    if (!errors || typeof errors !== 'object') {
+      return null;
+    }
+    const entries = Object.entries(errors as Record<string, unknown>);
+    if (!entries.length) {
+      return null;
+    }
+    const messages = entries.flatMap(([key, value]) => {
+      if (Array.isArray(value)) {
+        return value.map((item) => `${key}: ${String(item)}`);
+      }
+      if (value && typeof value === 'object') {
+        return Object.entries(value).map(
+          ([childKey, childValue]) => `${key}.${childKey}: ${String(childValue)}`,
+        );
+      }
+      return `${key}: ${String(value)}`;
+    });
+    return messages.join(' | ');
+  };
 
   useEffect(() => {
     if (!accessToken) {
@@ -172,6 +202,7 @@ export default function TransactionScreen() {
 
     const fetchTransactions = async () => {
       setIsLoading(true);
+      setNextPageUrl(null);
       try {
         const query = new URLSearchParams();
         if (filterType !== 'all') {
@@ -200,16 +231,14 @@ export default function TransactionScreen() {
         if (!isMounted) {
           return;
         }
-        if (result.ok && result.data) {
-          if (Array.isArray(result.data)) {
-            setTransactions(result.data);
-          } else {
-            setTransactions(result.data.results ?? []);
-          }
-        }
+        applyTransactionResponse(
+          result as { ok: boolean; data?: { results?: TransactionItem[]; next?: string | null } },
+          false,
+        );
       } catch (error) {
         if (isMounted) {
           setTransactions(fallbackTransactions);
+          setNextPageUrl(null);
         }
       } finally {
         if (isMounted) {
@@ -233,6 +262,88 @@ export default function TransactionScreen() {
     return categories.find((item) => item.id === filterCategoryId) ?? null;
   }, [categories, filterCategoryId]);
 
+  const startEdit = (item: TransactionItem) => {
+    setEditingId(item.id);
+    setTransactionType(item.type);
+    setAmount(String(item.amount));
+    setDescription(item.description ?? '');
+    setDate(item.date ?? '');
+    setCategoryId(item.category?.id ?? null);
+    setFormError('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setAmount('');
+    setDescription('');
+    setDate('');
+    setCategoryId(null);
+    setFormError('');
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!accessToken) {
+      setTransactions((prev) => prev.filter((item) => item.id !== id));
+      return;
+    }
+    setIsDeletingId(id);
+    setFormError('');
+    try {
+      let result = await api.delete(`transactions/${id}/`, accessToken);
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.delete(`transactions/${id}/`, newToken);
+        }
+      }
+      if (result.ok) {
+        setTransactions((prev) => prev.filter((item) => item.id !== id));
+      } else {
+        const fieldErrors = formatErrors(result.errors);
+        setFormError(fieldErrors ?? result.message ?? 'Unable to delete transaction.');
+      }
+    } catch (error) {
+      setFormError('Unable to delete transaction right now.');
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    setCategoryError('');
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      setCategoryError('Enter a category name.');
+      return;
+    }
+    if (!accessToken) {
+      setCategoryError('Sign in to create custom categories.');
+      return;
+    }
+    setIsCreatingCategory(true);
+    try {
+      let result = await api.post<CategoryOption>('categories/', { name: trimmed }, accessToken);
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.post<CategoryOption>('categories/', { name: trimmed }, newToken);
+        }
+      }
+      if (result.ok && result.data) {
+        setCategories((prev) => [result.data, ...prev]);
+        setCategoryId(result.data.id);
+        setNewCategoryName('');
+      } else {
+        const fieldErrors = formatErrors(result.errors);
+        setCategoryError(fieldErrors ?? result.message ?? 'Unable to create category.');
+      }
+    } catch (error) {
+      setCategoryError('Unable to create category right now.');
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter((item) => {
       if (filterType !== 'all' && item.type !== filterType) {
@@ -251,6 +362,52 @@ export default function TransactionScreen() {
     });
   }, [transactions, filterType, filterCategoryId, filterMonth]);
 
+  const applyTransactionResponse = (
+    result: {
+      ok: boolean;
+      data?: { results?: TransactionItem[]; next?: string | null } | TransactionItem[];
+    },
+    append: boolean,
+  ) => {
+    if (!result.ok || !result.data) {
+      setNextPageUrl(null);
+      return;
+    }
+    if (Array.isArray(result.data)) {
+      setTransactions((prev) => (append ? [...prev, ...result.data] : result.data));
+      setNextPageUrl(null);
+      return;
+    }
+    const items = result.data.results ?? [];
+    setTransactions((prev) => (append ? [...prev, ...items] : items));
+    setNextPageUrl(result.data.next ?? null);
+  };
+
+  const handleLoadMore = async () => {
+    if (!nextPageUrl || isLoadingMore) {
+      return;
+    }
+    setIsLoadingMore(true);
+    try {
+      let result = await api.get<{ results?: TransactionItem[]; next?: string | null }>(
+        nextPageUrl,
+        accessToken,
+      );
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.get<{ results?: TransactionItem[]; next?: string | null }>(
+            nextPageUrl,
+            newToken,
+          );
+        }
+      }
+      applyTransactionResponse(result, true);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   const handleSave = async () => {
     setFormError('');
 
@@ -267,62 +424,77 @@ export default function TransactionScreen() {
       setFormError('Provide a date in YYYY-MM-DD format.');
       return;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setFormError('Date must be in YYYY-MM-DD format.');
+      return;
+    }
+    const today = new Date().toLocaleDateString('en-CA');
+    if (date > today) {
+      setFormError('Date cannot be in the future.');
+      return;
+    }
 
     if (!accessToken) {
       const tempCategory = selectedCategory ?? categories[0];
       const newItem: TransactionItem = {
-        id: Math.floor(Math.random() * 100000),
+        id: editingId ?? Math.floor(Math.random() * 100000),
         amount: amountValue,
         type: transactionType,
         description: description.trim(),
         date,
         category: tempCategory,
       };
-      setTransactions((prev) => [newItem, ...prev]);
+      if (editingId) {
+        setTransactions((prev) => prev.map((item) => (item.id === editingId ? newItem : item)));
+      } else {
+        setTransactions((prev) => [newItem, ...prev]);
+      }
       setAmount('');
       setDescription('');
       setDate('');
       setCategoryId(null);
+      setEditingId(null);
       return;
     }
 
     setIsSaving(true);
     try {
-      let result = await api.post<TransactionItem>(
-        'transactions/',
-        {
-          amount: amountValue,
-          category_id: categoryId,
-          type: transactionType,
-          description: description.trim(),
-          date,
-        },
-        accessToken,
-      );
+      const payload: Record<string, unknown> = {
+        amount: amountValue,
+        type: transactionType,
+        description: description.trim(),
+        date,
+      };
+      if (categoryId !== null) {
+        payload.category_id = categoryId;
+      }
+      let result = editingId
+        ? await api.patch<TransactionItem>(`transactions/${editingId}/`, payload, accessToken)
+        : await api.post<TransactionItem>('transactions/', payload, accessToken);
       if (result.status === 401) {
         const newToken = await refreshAccessToken();
         if (newToken) {
-          result = await api.post<TransactionItem>(
-            'transactions/',
-            {
-              amount: amountValue,
-              category_id: categoryId,
-              type: transactionType,
-              description: description.trim(),
-              date,
-            },
-            newToken,
-          );
+          result = editingId
+            ? await api.patch<TransactionItem>(`transactions/${editingId}/`, payload, newToken)
+            : await api.post<TransactionItem>('transactions/', payload, newToken);
         }
       }
       if (result.ok && result.data) {
-        setTransactions((prev) => [result.data, ...prev]);
+        if (editingId) {
+          setTransactions((prev) =>
+            prev.map((item) => (item.id === editingId ? result.data : item)),
+          );
+        } else {
+          setTransactions((prev) => [result.data, ...prev]);
+        }
         setAmount('');
         setDescription('');
         setDate('');
         setCategoryId(null);
+        setEditingId(null);
       } else {
-        setFormError(result.message ?? 'Unable to save transaction.');
+        const fieldErrors = formatErrors(result.errors);
+        setFormError(fieldErrors ?? result.message ?? 'Unable to save transaction.');
       }
     } catch (error) {
       setFormError('Unable to save transaction right now.');
@@ -351,6 +523,15 @@ export default function TransactionScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Add Transaction</Text>
+
+          {editingId ? (
+            <View style={styles.editBanner}>
+              <Text style={styles.editText}>Editing transaction #{editingId}</Text>
+              <TouchableOpacity style={styles.editCancel} onPress={cancelEdit}>
+                <Text style={styles.editCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           <View style={styles.toggleRow}>
             <TouchableOpacity
@@ -429,6 +610,31 @@ export default function TransactionScreen() {
           </View>
 
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>New Category (optional)</Text>
+            <View style={styles.categoryRow}>
+              <TextInput
+                style={[styles.input, styles.categoryInput]}
+                placeholder="e.g. Airtime"
+                placeholderTextColor={palette.textSecondary}
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+              />
+              <TouchableOpacity
+                style={styles.categoryButton}
+                onPress={handleCreateCategory}
+                disabled={isCreatingCategory}
+              >
+                {isCreatingCategory ? (
+                  <ActivityIndicator color={palette.textPrimary} />
+                ) : (
+                  <Text style={styles.categoryButtonText}>Add</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            {categoryError ? <Text style={styles.errorText}>{categoryError}</Text> : null}
+          </View>
+
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Date</Text>
             <View style={styles.dateRow}>
               <TextInput
@@ -473,7 +679,9 @@ export default function TransactionScreen() {
             {isSaving ? (
               <ActivityIndicator color={palette.textPrimary} />
             ) : (
-              <Text style={styles.saveButtonText}>Save Transaction</Text>
+              <Text style={styles.saveButtonText}>
+                {editingId ? 'Update Transaction' : 'Save Transaction'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -598,6 +806,25 @@ export default function TransactionScreen() {
                         {formatKes(item.amount)}
                       </Text>
                       <Text style={styles.transactionMeta}>{item.description}</Text>
+                      <View style={styles.transactionActionsRow}>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => startEdit(item)}
+                        >
+                          <Text style={styles.actionText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.actionButton, styles.deleteButton]}
+                          onPress={() => handleDelete(item.id)}
+                          disabled={isDeletingId === item.id}
+                        >
+                          {isDeletingId === item.id ? (
+                            <ActivityIndicator color={palette.card} />
+                          ) : (
+                            <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 );
@@ -605,10 +832,24 @@ export default function TransactionScreen() {
               {!filteredTransactions.length ? (
                 <Text style={styles.emptyText}>No transactions found for the selected filters.</Text>
               ) : null}
+              {nextPageUrl ? (
+                <TouchableOpacity
+                  style={styles.loadMoreButton}
+                  onPress={handleLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? (
+                    <ActivityIndicator color={palette.textPrimary} />
+                  ) : (
+                    <Text style={styles.loadMoreText}>Load more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
           )}
         </View>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -624,7 +865,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     backgroundColor: palette.sidebar,
@@ -675,6 +916,33 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
     marginBottom: 12,
   },
+  editBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.2)',
+    marginBottom: 16,
+  },
+  editText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: palette.cashBlue,
+  },
+  editCancel: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(37, 99, 235, 0.15)',
+  },
+  editCancelText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: palette.cashBlue,
+  },
   toggleRow: {
     flexDirection: 'row',
     marginBottom: 16,
@@ -700,6 +968,27 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 14,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  categoryInput: {
+    flex: 1,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.5)',
+  },
+  categoryButtonText: {
+    color: palette.textPrimary,
+    fontWeight: '600',
+    fontSize: 13,
   },
   label: {
     fontSize: 12,
@@ -862,6 +1151,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     maxWidth: 140,
   },
+  transactionActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  actionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(100, 116, 139, 0.12)',
+  },
+  actionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: palette.textPrimary,
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  deleteText: {
+    color: '#B91C1C',
+  },
   transactionAmount: {
     fontSize: 14,
     fontWeight: '700',
@@ -876,5 +1187,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  loadMoreButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.4)',
+  },
+  loadMoreText: {
+    color: palette.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

@@ -10,6 +10,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
+import BottomNav from '@/components/bottom-nav';
+
 const palette = {
   accentGreen: '#4ADE80',
   sidebar: '#1E293B',
@@ -35,7 +37,7 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Text style={styles.heroTitle}>AI_Finance</Text>
+            <Text style={styles.heroTitle}>OptiFi</Text>
             <Text style={styles.heroSubtitle}>Your personal money cockpit</Text>
           </LinearGradient>
         </View>
@@ -75,6 +77,7 @@ export default function HomeScreen() {
         </View>
 
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -86,7 +89,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   hero: {
     borderRadius: 20,

@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
+import BottomNav from '@/components/bottom-nav';
 
 const { width } = Dimensions.get('window');
 
@@ -80,7 +81,7 @@ export default function ForgotPasswordScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.brandName}>AI_Finance</Text>
+        <Text style={styles.brandName}>OptiFi</Text>
       </View>
 
       <ScrollView
@@ -128,6 +129,7 @@ export default function ForgotPasswordScreen() {
           </View>
         </View>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -189,7 +191,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   formContainer: {
     paddingHorizontal: 24,

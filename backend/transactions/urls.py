@@ -3,10 +3,11 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from transactions.views import CategoryListCreateAPIView, TransactionViewSet
+from transactions.views import BudgetViewSet, CategoryListCreateAPIView, TransactionViewSet
 
 router = DefaultRouter()
 router.register(r"transactions", TransactionViewSet, basename="transaction")
+router.register(r"budgets", BudgetViewSet, basename="budget")
 
 urlpatterns = [
     path("", include(router.urls)),

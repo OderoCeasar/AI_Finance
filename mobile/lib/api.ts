@@ -41,16 +41,22 @@ const buildHeaders = (token?: string | null) => {
 
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<ApiResult<T>> => {
   const { method = 'GET', body, token } = options;
-  const response = await fetch(buildUrl(path), {
+  const url = buildUrl(path);
+  console.log('[API] Request:', { method, url, body: !!body });
+  const response = await fetch(url, {
     method,
     headers: buildHeaders(token),
     body: body ? JSON.stringify(body) : undefined,
   });
+  console.log('[API] Response status:', response.status);
 
   let payload: ApiResponse<T> | null = null;
   try {
-    payload = (await response.json()) as ApiResponse<T>;
+    const text = await response.text();
+    console.log('[API] Response body:', text.substring(0, 500));
+    payload = JSON.parse(text) as ApiResponse<T>;
   } catch (error) {
+    console.log('[API] JSON parse error:', error);
     payload = null;
   }
 

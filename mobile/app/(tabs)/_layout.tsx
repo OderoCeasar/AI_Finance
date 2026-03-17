@@ -10,14 +10,19 @@ import { useAuth } from '@/lib/auth';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { tokens, isReady } = useAuth();
+  console.log('[Tabs] Layout render:', { isReady, hasTokens: !!tokens, access: !!tokens?.access });
 
   if (!isReady) {
+    console.log('[Tabs] Not ready, returning null');
     return null;
   }
 
   if (!tokens?.access) {
+    console.log('[Tabs] No access token, redirecting to WelcomeScreen');
     return <Redirect href="/WelcomeScreen" />;
   }
+
+  console.log('[Tabs] Rendering tabs');
 
   return (
     <Tabs
@@ -25,6 +30,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: { display: 'none' },
       }}>
       <Tabs.Screen
         name="index"

@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import BottomNav from '@/components/bottom-nav';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -116,28 +117,40 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Preferences</Text>
           <View style={styles.preferenceList}>
-            <TouchableOpacity style={styles.preferenceItem}>
+            <TouchableOpacity
+              style={styles.preferenceItem}
+              onPress={() => router.push('/EmailSettingsScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Email Settings</Text>
                 <Text style={styles.preferenceSubtitle}>Manage newsletters and alerts</Text>
               </View>
               <Text style={styles.preferenceChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.preferenceItem}>
+            <TouchableOpacity
+              style={styles.preferenceItem}
+              onPress={() => router.push('/DeviceScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Device</Text>
                 <Text style={styles.preferenceSubtitle}>Trusted devices and sessions</Text>
               </View>
               <Text style={styles.preferenceChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.preferenceItem}>
+            <TouchableOpacity
+              style={styles.preferenceItem}
+              onPress={() => router.push('/NotificationSettingsScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Notification Settings</Text>
                 <Text style={styles.preferenceSubtitle}>Push and in-app preferences</Text>
               </View>
               <Text style={styles.preferenceChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.preferenceItem, styles.preferenceItemLast]}>
+            <TouchableOpacity
+              style={[styles.preferenceItem, styles.preferenceItemLast]}
+              onPress={() => router.push('/SecurityScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Security</Text>
                 <Text style={styles.preferenceSubtitle}>Password and authentication</Text>
@@ -151,6 +164,7 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
       </ScrollView>
+      <BottomNav />
     </View>
   );
 }
@@ -162,7 +176,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     backgroundColor: palette.sidebar,

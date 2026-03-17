@@ -10,6 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 
+
 const { width, height } = Dimensions.get('window');
 
 const palette = {
@@ -45,7 +46,7 @@ export default function WelcomeScreen() {
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>AI_Finance</Text>
+          <Text style={styles.logoText}>OptiFi</Text>
           <Text style={styles.tagline}>Smart Money Management</Text>
         </View>
 
@@ -125,6 +126,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
+    paddingBottom: 120,
   },
   logoContainer: {
     alignItems: 'center',
