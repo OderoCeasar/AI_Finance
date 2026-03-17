@@ -55,7 +55,7 @@ Frontend:
 
 ```bash
 git clone https://github.com/OderoCeasar/AI_Finance.git
-cd AI_Finance
+cd OptiFi
 ```
 
 ### 2. Run the backend (Django)
