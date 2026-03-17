@@ -117,28 +117,40 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Preferences</Text>
           <View style={styles.preferenceList}>
-            <TouchableOpacity style={styles.preferenceItem}>
+            <TouchableOpacity
+              style={styles.preferenceItem}
+              onPress={() => router.push('/EmailSettingsScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Email Settings</Text>
                 <Text style={styles.preferenceSubtitle}>Manage newsletters and alerts</Text>
               </View>
               <Text style={styles.preferenceChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.preferenceItem}>
+            <TouchableOpacity
+              style={styles.preferenceItem}
+              onPress={() => router.push('/DeviceScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Device</Text>
                 <Text style={styles.preferenceSubtitle}>Trusted devices and sessions</Text>
               </View>
               <Text style={styles.preferenceChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.preferenceItem}>
+            <TouchableOpacity
+              style={styles.preferenceItem}
+              onPress={() => router.push('/NotificationSettingsScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Notification Settings</Text>
                 <Text style={styles.preferenceSubtitle}>Push and in-app preferences</Text>
               </View>
               <Text style={styles.preferenceChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.preferenceItem, styles.preferenceItemLast]}>
+            <TouchableOpacity
+              style={[styles.preferenceItem, styles.preferenceItemLast]}
+              onPress={() => router.push('/SecurityScreen')}
+            >
               <View>
                 <Text style={styles.preferenceTitle}>Security</Text>
                 <Text style={styles.preferenceSubtitle}>Password and authentication</Text>
