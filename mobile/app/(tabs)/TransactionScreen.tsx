@@ -125,12 +125,14 @@ export default function TransactionScreen() {
   const [filterMonth, setFilterMonth] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [formError, setFormError] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categoryError, setCategoryError] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [filterCategoryOpen, setFilterCategoryOpen] = useState(false);
   const { tokens, refreshAccessToken } = useAuth();
@@ -200,6 +202,7 @@ export default function TransactionScreen() {
 
     const fetchTransactions = async () => {
       setIsLoading(true);
+      setNextPageUrl(null);
       try {
         const query = new URLSearchParams();
         if (filterType !== 'all') {
@@ -228,16 +231,14 @@ export default function TransactionScreen() {
         if (!isMounted) {
           return;
         }
-        if (result.ok && result.data) {
-          if (Array.isArray(result.data)) {
-            setTransactions(result.data);
-          } else {
-            setTransactions(result.data.results ?? []);
-          }
-        }
+        applyTransactionResponse(
+          result as { ok: boolean; data?: { results?: TransactionItem[]; next?: string | null } },
+          false,
+        );
       } catch (error) {
         if (isMounted) {
           setTransactions(fallbackTransactions);
+          setNextPageUrl(null);
         }
       } finally {
         if (isMounted) {
@@ -360,6 +361,52 @@ export default function TransactionScreen() {
       return true;
     });
   }, [transactions, filterType, filterCategoryId, filterMonth]);
+
+  const applyTransactionResponse = (
+    result: {
+      ok: boolean;
+      data?: { results?: TransactionItem[]; next?: string | null } | TransactionItem[];
+    },
+    append: boolean,
+  ) => {
+    if (!result.ok || !result.data) {
+      setNextPageUrl(null);
+      return;
+    }
+    if (Array.isArray(result.data)) {
+      setTransactions((prev) => (append ? [...prev, ...result.data] : result.data));
+      setNextPageUrl(null);
+      return;
+    }
+    const items = result.data.results ?? [];
+    setTransactions((prev) => (append ? [...prev, ...items] : items));
+    setNextPageUrl(result.data.next ?? null);
+  };
+
+  const handleLoadMore = async () => {
+    if (!nextPageUrl || isLoadingMore) {
+      return;
+    }
+    setIsLoadingMore(true);
+    try {
+      let result = await api.get<{ results?: TransactionItem[]; next?: string | null }>(
+        nextPageUrl,
+        accessToken,
+      );
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.get<{ results?: TransactionItem[]; next?: string | null }>(
+            nextPageUrl,
+            newToken,
+          );
+        }
+      }
+      applyTransactionResponse(result, true);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const handleSave = async () => {
     setFormError('');
@@ -785,6 +832,19 @@ export default function TransactionScreen() {
               {!filteredTransactions.length ? (
                 <Text style={styles.emptyText}>No transactions found for the selected filters.</Text>
               ) : null}
+              {nextPageUrl ? (
+                <TouchableOpacity
+                  style={styles.loadMoreButton}
+                  onPress={handleLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? (
+                    <ActivityIndicator color={palette.textPrimary} />
+                  ) : (
+                    <Text style={styles.loadMoreText}>Load more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
           )}
         </View>
@@ -1127,5 +1187,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  loadMoreButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.4)',
+  },
+  loadMoreText: {
+    color: palette.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
