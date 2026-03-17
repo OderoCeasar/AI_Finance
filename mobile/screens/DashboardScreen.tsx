@@ -431,12 +431,6 @@ export default function DashboardScreen() {
                 <Text style={styles.quickSubtitle}>Account settings</Text>
               </TouchableOpacity>
             </Link>
-            <Link href="/AllScreens" asChild>
-              <TouchableOpacity style={styles.quickCard}>
-                <Text style={styles.quickTitle}>All Screens</Text>
-                <Text style={styles.quickSubtitle}>Navigation hub</Text>
-              </TouchableOpacity>
-            </Link>
           </View>
         </View>
 

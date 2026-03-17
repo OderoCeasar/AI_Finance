@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
+import { AntDesign } from '@expo/vector-icons';
 
 import { useAuth } from '@/lib/auth';
 
@@ -18,18 +19,21 @@ const palette = {
 };
 
 const publicItems = [
-  { label: 'Welcome', path: '/WelcomeScreen' },
-  { label: 'Login', path: '/LoginScreen' },
-  { label: 'Signup', path: '/SignupScreen' },
-  { label: 'All', path: '/AllScreens' },
+  { label: 'Welcome', path: '/WelcomeScreen', icon: 'home' },
+  { label: 'Login', path: '/LoginScreen', icon: 'login' },
+  { label: 'Signup', path: '/SignupScreen', icon: 'adduser' },
 ];
 
 const appItems = [
-  { label: 'Dashboard', path: '/Dashboard' },
-  { label: 'Home', path: '/(tabs)' },
-  { label: 'Transactions', path: '/(tabs)/TransactionScreen' },
-  { label: 'Profile', path: '/(tabs)/ProfileScreen' },
-  { label: 'All', path: '/AllScreens' },
+  { label: 'Dashboard', path: '/Dashboard', icon: 'home' },
+  {
+    label: 'Transactions',
+    path: '/(tabs)/TransactionScreen',
+    icon: 'custom-transaction',
+    source: require('@/assets/images/transaction-icon.png'),
+  },
+  { label: 'Add', path: '/AddTransaction', icon: 'plus' },
+  { label: 'Profile', path: '/(tabs)/ProfileScreen', icon: 'user' },
 ];
 
 type BottomNavProps = {
@@ -50,14 +54,18 @@ export default function BottomNav({ variant }: BottomNavProps) {
 
   const items = resolvedVariant === 'app' ? appItems : publicItems;
 
+  const normalizePath = (value: string) => value.replace('/(tabs)', '');
+
   const isActive = (path: string) => {
-    if (pathname === path) {
+    const normalizedPath = normalizePath(path);
+    const normalizedCurrent = normalizePath(pathname);
+    if (normalizedCurrent === normalizedPath) {
       return true;
     }
-    if (path === '/(tabs)') {
-      return pathname.startsWith('/(tabs)');
+    if (normalizedPath === '') {
+      return false;
     }
-    return pathname.startsWith(`${path}/`);
+    return normalizedCurrent.startsWith(`${normalizedPath}/`);
   };
 
   return (
@@ -71,10 +79,25 @@ export default function BottomNav({ variant }: BottomNavProps) {
               style={[styles.button, active && styles.buttonActive]}
               onPress={() => router.replace(item.path)}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
             >
-              <Text style={[styles.buttonText, active && styles.buttonTextActive]}>
-                {item.label}
-              </Text>
+              {item.icon === 'custom-transaction' ? (
+                <Image
+                  source={item.source}
+                  style={[
+                    styles.customIcon,
+                    { tintColor: active ? palette.textPrimary : palette.textSecondary },
+                  ]}
+                  resizeMode="contain"
+                />
+              ) : (
+                <AntDesign
+                  name={item.icon as keyof typeof AntDesign.glyphMap}
+                  size={20}
+                  color={active ? palette.textPrimary : palette.textSecondary}
+                />
+              )}
             </TouchableOpacity>
           );
         })}
@@ -94,7 +117,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     backgroundColor: palette.card,
     borderRadius: 18,
     padding: 10,
@@ -116,12 +139,8 @@ const styles = StyleSheet.create({
   buttonActive: {
     backgroundColor: 'rgba(74, 222, 128, 0.2)',
   },
-  buttonText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: palette.textSecondary,
-  },
-  buttonTextActive: {
-    color: palette.textPrimary,
+  customIcon: {
+    width: 26,
+    height: 26,
   },
 });

@@ -68,13 +68,6 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.shortcutCard}
-              onPress={() => router.push('/AllScreens')}
-            >
-              <Text style={styles.shortcutTitle}>All Screens</Text>
-              <Text style={styles.shortcutMeta}>Navigation hub</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.shortcutCard}
               onPress={() => router.push('/(tabs)/ProfileScreen')}
             >
               <Text style={styles.shortcutTitle}>Profile</Text>
