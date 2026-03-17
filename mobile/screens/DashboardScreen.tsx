@@ -80,13 +80,6 @@ const fallbackSummary: DashboardSummary = {
   top_categories: [],
 };
 
-const fallbackBudgets = [
-  { category: 'Food', percent: 60, color: palette.accentGreen },
-  { category: 'Transport', percent: 40, color: palette.cashBlue },
-  { category: 'Rent', percent: 100, color: palette.sidebar },
-  { category: 'Entertainment', percent: 75, color: palette.mpesaGreen },
-];
-
 const fallbackInsights: RecommendationItem[] = [
   { message: 'You are likely to overspend on food this month.' },
   { message: 'You can save KES 5,000 if you reduce entertainment spending.' },
@@ -377,19 +370,24 @@ export default function DashboardScreen() {
   };
 
   const budgetProgress = useMemo(() => {
-    if (!breakdown.length) {
-      return fallbackBudgets;
+    if (!budgets.length) {
+      return [];
     }
 
-    const breakdownMap = new Map(
-      breakdown.map((item) => [item.category.toLowerCase(), toNumber(item.percentage)])
-    );
-
-    return fallbackBudgets.map((item) => ({
-      ...item,
-      percent: breakdownMap.get(item.category.toLowerCase()) ?? item.percent,
-    }));
-  }, [breakdown]);
+    return budgets.map((budget, index) => {
+      const spent = spentByCategory.get(budget.category.name.toLowerCase()) ?? 0;
+      const limit = toNumber(budget.amount);
+      const percent = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+      const isOver = spent > limit;
+      const colors = [palette.accentGreen, palette.cashBlue, palette.sidebar, palette.mpesaGreen];
+      const color = isOver ? '#EF4444' : colors[index % colors.length];
+      return {
+        category: budget.category.name,
+        percent,
+        color,
+      };
+    });
+  }, [budgets, spentByCategory]);
 
   const savingsRate = toNumber(summary.savings_rate);
 
@@ -593,25 +591,29 @@ export default function DashboardScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Budget Progress</Text>
-          {budgetProgress.map((item) => (
-            <View key={item.category} style={styles.progressRow}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>{item.category}</Text>
-                <Text style={styles.progressPercent}>{`${item.percent}% used`}</Text>
+          {budgetProgress.length ? (
+            budgetProgress.map((item) => (
+              <View key={item.category} style={styles.progressRow}>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressLabel}>{item.category}</Text>
+                  <Text style={styles.progressPercent}>{`${item.percent.toFixed(0)}% used`}</Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${Math.min(item.percent, 100)}%`,
+                        backgroundColor: item.color,
+                      },
+                    ]}
+                  />
+                </View>
               </View>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.min(item.percent, 100)}%`,
-                      backgroundColor: item.color,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          ))}
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No budgets set for this month.</Text>
+          )}
         </View>
 
         <View style={styles.card}>
