@@ -72,6 +72,15 @@ type PredictionItem = {
   created_at?: string;
 };
 
+type MonthlySummary = {
+  id?: number;
+  month: string;
+  total_income: number | string;
+  total_expense: number | string;
+  savings: number | string;
+  savings_rate: number | string;
+};
+
 const fallbackSummary: DashboardSummary = {
   income: 120000,
   expenses: 72000,
@@ -115,6 +124,7 @@ export default function DashboardScreen() {
   const [predictionError, setPredictionError] = useState('');
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [budgetCategoryId, setBudgetCategoryId] = useState<number | null>(null);
@@ -157,6 +167,7 @@ export default function DashboardScreen() {
           insightsRes,
           trendRes,
           predictionRes,
+          monthlySummaryRes,
           categoriesRes,
           budgetsRes,
         ] = await Promise.all([
@@ -165,6 +176,7 @@ export default function DashboardScreen() {
           fetchWithRefresh((token) => api.get<RecommendationItem[]>('recommendations/', token)),
           fetchWithRefresh((token) => api.get<TrendItem[]>('analytics/spending-trend/', token)),
           fetchWithRefresh((token) => api.get<PredictionItem>('predictions/latest/', token)),
+          fetchWithRefresh((token) => api.get<MonthlySummary>(`transactions/summary/?month=${currentMonth}`, token)),
           fetchWithRefresh((token) => api.get<CategoryOption[]>('categories/', token)),
           fetchWithRefresh((token) => api.get<BudgetItem[]>(`budgets/?month=${currentMonth}`, token)),
         ]);
@@ -203,6 +215,14 @@ export default function DashboardScreen() {
           setCategories(categoriesRes.data);
         }
 
+        if (isMounted) {
+          if (monthlySummaryRes.ok && monthlySummaryRes.data) {
+            setMonthlySummary(monthlySummaryRes.data);
+          } else {
+            setMonthlySummary(null);
+          }
+        }
+
         if (isMounted && budgetsRes.ok && budgetsRes.data) {
           setBudgets(budgetsRes.data);
         }
@@ -213,6 +233,7 @@ export default function DashboardScreen() {
           setInsights(fallbackInsights);
           setTrend([]);
           setPrediction(null);
+          setMonthlySummary(null);
           setBudgets([]);
         }
       } finally {
@@ -390,6 +411,7 @@ export default function DashboardScreen() {
   }, [budgets, spentByCategory]);
 
   const savingsRate = toNumber(summary.savings_rate);
+  const summarySavingsRate = monthlySummary ? toNumber(monthlySummary.savings_rate) : 0;
 
   return (
     <View style={styles.screen}>
@@ -461,6 +483,33 @@ export default function DashboardScreen() {
             </View>
           </View>
         </View>
+
+        {monthlySummary ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Monthly Summary</Text>
+            <Text style={styles.cardSubtitle}>{monthlySummary.month}</Text>
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>Total Income</Text>
+                <Text style={[styles.metricValue, styles.metricIncome]}>
+                  {formatKes(monthlySummary.total_income)}
+                </Text>
+              </View>
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>Total Expense</Text>
+                <Text style={[styles.metricValue, styles.metricExpense]}>
+                  {formatKes(monthlySummary.total_expense)}
+                </Text>
+              </View>
+              <View style={styles.metricItem}>
+                <Text style={styles.metricLabel}>Savings Rate</Text>
+                <Text style={[styles.metricValue, styles.metricSavings]}>
+                  {`${summarySavingsRate.toFixed(1)}%`}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Budgets ({currentMonth})</Text>
@@ -739,6 +788,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: palette.textPrimary,
+    marginBottom: 12,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: palette.textSecondary,
     marginBottom: 12,
   },
   cardTitleTight: {
