@@ -1,103 +1,68 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
 import BottomNav from '@/components/bottom-nav';
 
-export default function TabTwoScreen() {
+const palette = {
+  accentGreen: '#4ADE80',
+  sidebar: '#1E293B',
+  textSecondary: '#64748B',
+  textPrimary: '#0F172A',
+  cashBlue: '#2563EB',
+  mpesaGreen: '#10B981',
+  surface: '#F8FAFC',
+  card: '#FFFFFF',
+};
+
+export default function ExploreScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.screen}>
-      <ParallaxScrollView
-        headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-        headerImage={
-          <IconSymbol
-            size={310}
-            color="#808080"
-            name="chevron.left.forwardslash.chevron.right"
-            style={styles.headerImage}
-          />
-        }>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText
-            type="title"
-            style={{
-              fontFamily: Fonts.rounded,
-            }}>
-            Explore
-          </ThemedText>
-        </ThemedView>
-        <ThemedText>This app includes example code to help you get started.</ThemedText>
-        <Collapsible title="File-based routing">
-          <ThemedText>
-            This app has two screens:{' '}
-            <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-            <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-          </ThemedText>
-          <ThemedText>
-            The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-            sets up the tab navigator.
-          </ThemedText>
-          <ExternalLink href="https://docs.expo.dev/router/introduction">
-            <ThemedText type="link">Learn more</ThemedText>
-          </ExternalLink>
-        </Collapsible>
-        <Collapsible title="Android, iOS, and web support">
-          <ThemedText>
-            You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-            <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-          </ThemedText>
-        </Collapsible>
-        <Collapsible title="Images">
-          <ThemedText>
-            For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-            <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-            different screen densities
-          </ThemedText>
-          <Image
-            source={require('@/assets/images/react-logo.png')}
-            style={{ width: 100, height: 100, alignSelf: 'center' }}
-          />
-          <ExternalLink href="https://reactnative.dev/docs/images">
-            <ThemedText type="link">Learn more</ThemedText>
-          </ExternalLink>
-        </Collapsible>
-        <Collapsible title="Light and dark mode components">
-          <ThemedText>
-            This template has light and dark mode support. The{' '}
-            <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-            what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-          </ThemedText>
-          <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-            <ThemedText type="link">Learn more</ThemedText>
-          </ExternalLink>
-        </Collapsible>
-        <Collapsible title="Animations">
-          <ThemedText>
-            This template includes an example of an animated component. The{' '}
-            <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-            the powerful{' '}
-            <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-              react-native-reanimated
-            </ThemedText>{' '}
-            library to create a waving hand animation.
-          </ThemedText>
-          {Platform.select({
-            ios: (
-              <ThemedText>
-                The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-                component provides a parallax effect for the header image.
-              </ThemedText>
-            ),
-          })}
-        </Collapsible>
-        <View style={styles.bottomSpacer} />
-      </ParallaxScrollView>
+      <StatusBar barStyle="light-content" backgroundColor={palette.sidebar} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Explore</Text>
+          <Text style={styles.headerSubtitle}>Discover insights and smart actions</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Smart Insights</Text>
+          <Text style={styles.cardText}>
+            Get weekly summaries, budget alerts, and spending patterns based on your transactions.
+          </Text>
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/Dashboard')}>
+            <Text style={styles.actionText}>View Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Transaction Hub</Text>
+          <Text style={styles.cardText}>
+            Track income and expenses, then filter by category or month to see where money goes.
+          </Text>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/(tabs)/TransactionScreen')}
+          >
+            <Text style={styles.secondaryText}>Open Transactions</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Personalized Tips</Text>
+          <Text style={styles.cardText}>
+            Stay on top of savings goals with tailored recommendations and forecasting.
+          </Text>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/(tabs)/ProfileScreen')}
+          >
+            <Text style={styles.secondaryText}>Manage Profile</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
       <BottomNav />
     </View>
   );
@@ -106,18 +71,72 @@ export default function TabTwoScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: palette.surface,
   },
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  content: {
+    padding: 20,
+    paddingBottom: 120,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  header: {
+    backgroundColor: palette.sidebar,
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 20,
   },
-  bottomSpacer: {
-    height: 110,
+  headerTitle: {
+    color: palette.card,
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  headerSubtitle: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+  },
+  card: {
+    backgroundColor: palette.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.2)',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: palette.textPrimary,
+    marginBottom: 8,
+  },
+  cardText: {
+    fontSize: 13,
+    color: palette.textSecondary,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  actionButton: {
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.5)',
+  },
+  actionText: {
+    color: palette.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.35)',
+  },
+  secondaryText: {
+    color: palette.cashBlue,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

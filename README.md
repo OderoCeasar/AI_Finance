@@ -1,4 +1,4 @@
-# AI Finance
+# OptiFi
 
 A starter full-stack repository for an AI-powered personal finance product.
 
@@ -54,7 +54,7 @@ Frontend:
 ### 1. Clone and enter the repo
 
 ```bash
-git clone https://github.com/OderoCeasar/AI_Finance.git
+git clone https://github.com/OderoCeasar/OptiFi.git
 cd OptiFi
 ```
 

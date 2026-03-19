@@ -35,8 +35,11 @@ export function useGoogleAuth({
 
   const redirectUri = AuthSession.makeRedirectUri({
     useProxy: !isWeb,
-    path: redirectPath,
+    path: isWeb ? redirectPath : undefined,
   });
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[GoogleAuth] redirectUri:', redirectUri);
+  }
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: googleClientId,
     webClientId: googleClientId,

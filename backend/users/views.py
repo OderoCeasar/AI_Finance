@@ -226,7 +226,7 @@ class PasswordResetRequestAPIView(APIView):
         if user:
             reset_link = build_password_reset_link(user)
             send_mail(
-                subject="Reset your AI Finance password",
+                subject="Reset your OptiFi password",
                 message=(
                     "We received a request to reset your password.\n\n"
                     f"Reset link: {reset_link}\n\n"
