@@ -1,7 +1,7 @@
 import React from 'react';
 
-import TransactionScreen from './(tabs)/TransactionScreen';
+import ConnectAccountsPlusScreen from '@/screens/ConnectAccountsPlusScreen';
 
 export default function AddTransactionRoute() {
-  return <TransactionScreen />;
+  return <ConnectAccountsPlusScreen />;
 }
