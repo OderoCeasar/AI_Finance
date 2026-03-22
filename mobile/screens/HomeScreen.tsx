@@ -76,6 +76,22 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Connect Accounts</Text>
+          <View style={styles.connectCard}>
+            <Text style={styles.connectTitle}>Unlock smarter insights</Text>
+            <Text style={styles.connectSubtitle}>
+              Connect M-Pesa or bank statements to auto-import transactions.
+            </Text>
+            <TouchableOpacity
+              style={styles.connectButton}
+              onPress={() => router.push('/ConnectedAccountsScreen')}
+            >
+              <Text style={styles.connectButtonText}>Connect M-Pesa / Bank</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
       </ScrollView>
       <BottomNav />
     </View>
@@ -141,5 +157,37 @@ const styles = StyleSheet.create({
   shortcutMeta: {
     fontSize: 12,
     color: palette.textSecondary,
+  },
+  connectCard: {
+    backgroundColor: palette.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.2)',
+  },
+  connectTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: palette.textPrimary,
+    marginBottom: 6,
+  },
+  connectSubtitle: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  connectButton: {
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.5)',
+  },
+  connectButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: palette.textPrimary,
   },
 });
