@@ -457,6 +457,21 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={[styles.cardTitle, styles.cardTitleTight]}>Data Sources</Text>
+            <Text style={styles.cardHint}>M-Pesa & Bank</Text>
+          </View>
+          <Text style={styles.cardText}>
+            Connect accounts to import transactions and unlock richer insights.
+          </Text>
+          <Link href="/ConnectedAccountsScreen" asChild>
+            <TouchableOpacity style={styles.connectButton}>
+              <Text style={styles.connectButtonText}>Connect M-Pesa / Bank</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>Financial Overview</Text>
           <View style={styles.balanceRow}>
             <Text style={styles.balanceLabel}>Total Balance</Text>
@@ -807,6 +822,25 @@ const styles = StyleSheet.create({
   cardHint: {
     fontSize: 12,
     color: palette.textSecondary,
+  },
+  cardText: {
+    fontSize: 13,
+    color: palette.textSecondary,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  connectButton: {
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.5)',
+  },
+  connectButtonText: {
+    color: palette.textPrimary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   actionPill: {
     paddingHorizontal: 12,
