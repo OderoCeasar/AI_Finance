@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -113,6 +114,7 @@ const parseAmount = (value: string) => {
 };
 
 export default function TransactionScreen() {
+  const router = useRouter();
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -521,6 +523,24 @@ export default function TransactionScreen() {
           </View>
         </View>
 
+        <View style={styles.connectCard}>
+          <Text style={styles.connectTitle}>Connect M-Pesa / Bank</Text>
+          <Text style={styles.connectSubtitle}>
+            Import transactions and get smarter insights automatically.
+          </Text>
+          <View style={styles.connectActions}>
+            <TouchableOpacity style={styles.connectButton}>
+              <Text style={styles.connectButtonText}>Import last 30 days</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.connectOutlineButton}
+              onPress={() => router.push('/ConnectedAccountsScreen')}
+            >
+              <Text style={styles.connectOutlineText}>Manage connections</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Add Transaction</Text>
 
@@ -896,6 +916,55 @@ const styles = StyleSheet.create({
     color: palette.card,
     fontWeight: '600',
     fontSize: 12,
+  },
+  connectCard: {
+    backgroundColor: palette.card,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.2)',
+  },
+  connectTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: palette.textPrimary,
+    marginBottom: 6,
+  },
+  connectSubtitle: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  connectActions: {
+    gap: 10,
+  },
+  connectButton: {
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.5)',
+  },
+  connectButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: palette.textPrimary,
+  },
+  connectOutlineButton: {
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.35)',
+  },
+  connectOutlineText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: palette.cashBlue,
   },
   card: {
     backgroundColor: palette.card,

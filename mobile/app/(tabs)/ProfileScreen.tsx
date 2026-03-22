@@ -148,6 +148,16 @@ export default function ProfileScreen() {
               <Text style={styles.preferenceChevron}>›</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={styles.preferenceItem}
+              onPress={() => router.push('/ConnectedAccountsScreen')}
+            >
+              <View>
+                <Text style={styles.preferenceTitle}>Connected Accounts</Text>
+                <Text style={styles.preferenceSubtitle}>M-Pesa and bank connections</Text>
+              </View>
+              <Text style={styles.preferenceChevron}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.preferenceItem, styles.preferenceItemLast]}
               onPress={() => router.push('/SecurityScreen')}
             >

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import BottomNav from '@/components/bottom-nav';
+import { loadPreference } from '@/lib/preferences';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -14,7 +16,48 @@ const palette = {
   card: '#FFFFFF',
 };
 
+type ConnectionPrefs = {
+  mpesaEnabled: boolean;
+  bankEnabled: boolean;
+  mpesaLastSync: string;
+  bankLastSync: string;
+};
+
+const defaultPrefs: ConnectionPrefs = {
+  mpesaEnabled: false,
+  bankEnabled: false,
+  mpesaLastSync: 'Not connected',
+  bankLastSync: 'Not connected',
+};
+
 export default function ConnectAccountsPlusScreen() {
+  const router = useRouter();
+  const [prefs, setPrefs] = useState<ConnectionPrefs>(defaultPrefs);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const hydrate = async () => {
+      const stored = await loadPreference('connections', defaultPrefs);
+      setPrefs(stored);
+      setIsLoading(false);
+    };
+    hydrate();
+  }, []);
+
+  const hasConnection = prefs.mpesaEnabled || prefs.bankEnabled;
+
+  const lastSyncLabel = useMemo(() => {
+    const syncs = [prefs.mpesaLastSync, prefs.bankLastSync].filter(
+      (value) => value && value !== 'Not connected',
+    );
+    if (!syncs.length) {
+      return 'Never';
+    }
+    return syncs[0];
+  }, [prefs.mpesaLastSync, prefs.bankLastSync]);
+
+  const handleManageConnections = () => router.push('/ConnectedAccountsScreen');
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor={palette.sidebar} />
@@ -28,29 +71,39 @@ export default function ConnectAccountsPlusScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Status</Text>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>M-Pesa</Text>
-            <Text style={styles.statusOff}>Not connected</Text>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Bank</Text>
-            <Text style={styles.statusOff}>Not connected</Text>
-          </View>
-          <Text style={styles.statusMeta}>Last sync: Never</Text>
+          {isLoading ? (
+            <Text style={styles.cardText}>Loading connection status…</Text>
+          ) : (
+            <>
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>M-Pesa</Text>
+                <Text style={prefs.mpesaEnabled ? styles.statusOn : styles.statusOff}>
+                  {prefs.mpesaEnabled ? 'Connected' : 'Not connected'}
+                </Text>
+              </View>
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>Bank</Text>
+                <Text style={prefs.bankEnabled ? styles.statusOn : styles.statusOff}>
+                  {prefs.bankEnabled ? 'Connected' : 'Not connected'}
+                </Text>
+              </View>
+              <Text style={styles.statusMeta}>Last sync: {lastSyncLabel}</Text>
+            </>
+          )}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Quick Actions</Text>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleManageConnections}>
             <Text style={styles.actionText}>Connect M-Pesa</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleManageConnections}>
             <Text style={styles.actionText}>Connect Bank</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleManageConnections}>
             <Text style={styles.secondaryText}>Import last 30 days</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleManageConnections}>
             <Text style={styles.secondaryText}>Upload statement (CSV/PDF)</Text>
           </TouchableOpacity>
           <Text style={styles.helperText}>
@@ -58,22 +111,31 @@ export default function ConnectAccountsPlusScreen() {
           </Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Snapshot</Text>
-          <Text style={styles.cardText}>Connect to unlock summary insights.</Text>
-          <View style={styles.snapshotRow}>
-            <Text style={styles.snapshotLabel}>Transactions imported</Text>
-            <Text style={styles.snapshotValue}>—</Text>
+        {hasConnection ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Snapshot</Text>
+            <View style={styles.snapshotRow}>
+              <Text style={styles.snapshotLabel}>Transactions imported</Text>
+              <Text style={styles.snapshotValue}>186</Text>
+            </View>
+            <View style={styles.snapshotRow}>
+              <Text style={styles.snapshotLabel}>Top category</Text>
+              <Text style={styles.snapshotValue}>Food</Text>
+            </View>
+            <View style={styles.snapshotRow}>
+              <Text style={styles.snapshotLabel}>Biggest spend</Text>
+              <Text style={styles.snapshotValue}>KES 8,500</Text>
+            </View>
           </View>
-          <View style={styles.snapshotRow}>
-            <Text style={styles.snapshotLabel}>Top category</Text>
-            <Text style={styles.snapshotValue}>—</Text>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Unlock Insights</Text>
+            <Text style={styles.cardText}>Connect to unlock smart insights.</Text>
+            <TouchableOpacity style={styles.actionButton} onPress={handleManageConnections}>
+              <Text style={styles.actionText}>Connect M-Pesa / Bank</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.snapshotRow}>
-            <Text style={styles.snapshotLabel}>Biggest spend</Text>
-            <Text style={styles.snapshotValue}>—</Text>
-          </View>
-        </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Privacy</Text>
@@ -142,6 +204,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: palette.textPrimary,
     fontWeight: '600',
+  },
+  statusOn: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: palette.mpesaGreen,
   },
   statusOff: {
     fontSize: 12,

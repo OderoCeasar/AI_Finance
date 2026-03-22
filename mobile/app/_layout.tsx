@@ -22,10 +22,11 @@ export default function RootLayout() {
           <Stack.Screen name="SignupScreen" options={{ headerShown: false }} />
           <Stack.Screen name="ForgotPasswordScreen" options={{ headerShown: false }} />
           <Stack.Screen name="ResetPasswordScreen" options={{ headerShown: false }} />
-          <Stack.Screen name="EmailSettingsScreen" options={{ headerShown: false }} />
-          <Stack.Screen name="DeviceScreen" options={{ headerShown: false }} />
-          <Stack.Screen name="NotificationSettingsScreen" options={{ headerShown: false }} />
-          <Stack.Screen name="SecurityScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="EmailSettingsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="DeviceScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="NotificationSettingsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ConnectedAccountsScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="SecurityScreen" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
