@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -34,64 +33,87 @@ type DashboardSummary = {
   top_categories: Array<{ category: string; total: number | string }>;
 };
 
-type CategoryBreakdownItem = {
+type QuickAction = {
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  color: string;
+  background: string;
+};
+
+type AccountBalance = {
+  label: string;
+  amount: number;
+};
+
+type ActivityItem = {
+  id: string;
+  title: string;
   category: string;
-  total: number | string;
-  percentage: number | string;
-};
-
-type RecommendationItem = {
-  id?: number;
-  message: string;
-  priority?: string;
-};
-
-type CategoryOption = {
-  id: number;
-  name: string;
-};
-
-type BudgetItem = {
-  id: number;
-  amount: number | string;
-  month: string;
-  category: CategoryOption;
-};
-
-type TrendItem = {
-  month: string;
-  income: number | string;
-  expenses: number | string;
-  savings: number | string;
-};
-
-type PredictionItem = {
-  id?: number;
-  predicted_expense: number | string;
-  month: string;
-  created_at?: string;
-};
-
-type MonthlySummary = {
-  id?: number;
-  month: string;
-  total_income: number | string;
-  total_expense: number | string;
-  savings: number | string;
-  savings_rate: number | string;
+  source: string;
+  amount: number;
+  icon: keyof typeof Feather.glyphMap;
 };
 
 const fallbackSummary: DashboardSummary = {
   income: 120000,
   expenses: 72000,
-  savings: 48000,
-  savings_rate: 40,
+  savings: 124580,
+  savings_rate: 12.5,
   top_categories: [],
 };
 
-const fallbackInsights: RecommendationItem[] = [
-  { message: 'You are likely to overspend on food this month.' },
-  { message: 'You can save KES 5,000 if you reduce entertainment spending.' },
+const quickActions: QuickAction[] = [
+  {
+    label: 'Send',
+    icon: 'arrow-up-right',
+    color: '#16A34A',
+    background: 'rgba(34, 197, 94, 0.15)',
+  },
+  {
+    label: 'Receive',
+    icon: 'arrow-down-left',
+    color: '#EA580C',
+    background: 'rgba(249, 115, 22, 0.15)',
+  },
+  {
+    label: 'Budget',
+    icon: 'pie-chart',
+    color: '#2563EB',
+    background: 'rgba(37, 99, 235, 0.12)',
+  },
+  {
+    label: 'Save',
+    icon: 'dollar-sign',
+    color: '#CA8A04',
+    background: 'rgba(234, 179, 8, 0.18)',
+  },
+];
+
+const recentActivities: ActivityItem[] = [
+  {
+    id: 'zara',
+    title: 'Zara - Westgate',
+    category: 'Shopping',
+    source: 'M-Pesa',
+    amount: -4800,
+    icon: 'shopping-bag',
+  },
+  {
+    id: 'salary',
+    title: 'Salary Deposit',
+    category: 'Income',
+    source: 'Equity',
+    amount: 95000,
+    icon: 'briefcase',
+  },
+  {
+    id: 'java',
+    title: 'Java House',
+    category: 'Food',
+    source: 'M-Pesa',
+    amount: -890,
+    icon: 'coffee',
+  },
 ];
 
 const toNumber = (value: number | string) => {
@@ -112,30 +134,27 @@ const formatKes = (value: number | string) => {
   }
 };
 
-const normalizeAmountInput = (value: string) =>
-  value.replace(/[^0-9.]/g, '');
+const formatCompact = (value: number) => {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`;
+  }
+  return value.toFixed(0);
+};
+
+const formatSigned = (value: number) => {
+  const sign = value >= 0 ? '+' : '-';
+  const abs = Math.abs(value);
+  return `${sign}${abs.toLocaleString('en-KE')}`;
+};
 
 export default function DashboardScreen() {
+  const { tokens, refreshAccessToken, user } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary>(fallbackSummary);
-  const [breakdown, setBreakdown] = useState<CategoryBreakdownItem[]>([]);
-  const [insights, setInsights] = useState<RecommendationItem[]>(fallbackInsights);
-  const [trend, setTrend] = useState<TrendItem[]>([]);
-  const [prediction, setPrediction] = useState<PredictionItem | null>(null);
-  const [predictionError, setPredictionError] = useState('');
-  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
-  const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
-  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null);
-  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [budgetCategoryId, setBudgetCategoryId] = useState<number | null>(null);
-  const [budgetAmount, setBudgetAmount] = useState('');
-  const [budgetOpen, setBudgetOpen] = useState(false);
-  const [budgetError, setBudgetError] = useState('');
-  const [isSavingBudget, setIsSavingBudget] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { tokens, refreshAccessToken } = useAuth();
+  const [showBalances, setShowBalances] = useState(true);
   const accessToken = tokens?.access;
-  const currentMonth = new Date().toLocaleDateString('en-CA').slice(0, 7);
 
   useEffect(() => {
     if (!accessToken) {
@@ -145,12 +164,10 @@ export default function DashboardScreen() {
     let isMounted = true;
 
     const fetchDashboard = async () => {
-      setIsLoading(true);
       try {
-        const fetchWithRefresh = async <T,>(fetcher: (token: string) => Promise<ReturnType<typeof api.get<T>>>) => {
-          if (!accessToken) {
-            return fetcher('');
-          }
+        const fetchWithRefresh = async <T,>(
+          fetcher: (token: string) => Promise<ReturnType<typeof api.get<T>>>,
+        ) => {
           let result = await fetcher(accessToken);
           if (result.status === 401) {
             const newToken = await refreshAccessToken();
@@ -161,84 +178,16 @@ export default function DashboardScreen() {
           return result;
         };
 
-        const [
-          summaryRes,
-          breakdownRes,
-          insightsRes,
-          trendRes,
-          predictionRes,
-          monthlySummaryRes,
-          categoriesRes,
-          budgetsRes,
-        ] = await Promise.all([
-          fetchWithRefresh((token) => api.get<DashboardSummary>('analytics/dashboard/', token)),
-          fetchWithRefresh((token) => api.get<CategoryBreakdownItem[]>('analytics/category-breakdown/', token)),
-          fetchWithRefresh((token) => api.get<RecommendationItem[]>('recommendations/', token)),
-          fetchWithRefresh((token) => api.get<TrendItem[]>('analytics/spending-trend/', token)),
-          fetchWithRefresh((token) => api.get<PredictionItem>('predictions/latest/', token)),
-          fetchWithRefresh((token) => api.get<MonthlySummary>(`transactions/summary/?month=${currentMonth}`, token)),
-          fetchWithRefresh((token) => api.get<CategoryOption[]>('categories/', token)),
-          fetchWithRefresh((token) => api.get<BudgetItem[]>(`budgets/?month=${currentMonth}`, token)),
-        ]);
+        const summaryRes = await fetchWithRefresh((token) =>
+          api.get<DashboardSummary>('analytics/dashboard/', token),
+        );
 
         if (isMounted && summaryRes.ok && summaryRes.data) {
           setSummary(summaryRes.data);
         }
-
-        if (isMounted && breakdownRes.ok && breakdownRes.data) {
-          setBreakdown(breakdownRes.data);
-        }
-
-        if (isMounted && insightsRes.ok && insightsRes.data?.length) {
-          setInsights(insightsRes.data);
-        }
-
-        if (isMounted && trendRes.ok && trendRes.data) {
-          setTrend(trendRes.data);
-        }
-
-        if (isMounted) {
-          if (predictionRes.ok && predictionRes.data) {
-            setPrediction(predictionRes.data);
-            setPredictionError('');
-          } else {
-            setPrediction(null);
-            if (predictionRes.status !== 404) {
-              setPredictionError(predictionRes.message ?? 'Unable to load prediction.');
-            } else {
-              setPredictionError('');
-            }
-          }
-        }
-
-        if (isMounted && categoriesRes.ok && categoriesRes.data) {
-          setCategories(categoriesRes.data);
-        }
-
-        if (isMounted) {
-          if (monthlySummaryRes.ok && monthlySummaryRes.data) {
-            setMonthlySummary(monthlySummaryRes.data);
-          } else {
-            setMonthlySummary(null);
-          }
-        }
-
-        if (isMounted && budgetsRes.ok && budgetsRes.data) {
-          setBudgets(budgetsRes.data);
-        }
       } catch (error) {
         if (isMounted) {
           setSummary(fallbackSummary);
-          setBreakdown([]);
-          setInsights(fallbackInsights);
-          setTrend([]);
-          setPrediction(null);
-          setMonthlySummary(null);
-          setBudgets([]);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
         }
       }
     };
@@ -248,487 +197,150 @@ export default function DashboardScreen() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, refreshAccessToken, currentMonth]);
+  }, [accessToken, refreshAccessToken]);
 
-  const handleGenerateRecommendations = async () => {
-    if (!accessToken || isGeneratingRecommendations) {
-      return;
-    }
-    setIsGeneratingRecommendations(true);
-    try {
-      let result = await api.post<RecommendationItem[]>('recommendations/generate/', {}, accessToken);
-      if (result.status === 401) {
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          result = await api.post<RecommendationItem[]>('recommendations/generate/', {}, newToken);
-        }
-      }
-      if (result.ok && result.data?.length) {
-        setInsights(result.data);
-      }
-    } finally {
-      setIsGeneratingRecommendations(false);
-    }
-  };
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
-  const handleGenerateForecast = async () => {
-    if (!accessToken || isGeneratingForecast) {
-      return;
-    }
-    setIsGeneratingForecast(true);
-    setPredictionError('');
-    try {
-      let result = await api.post<PredictionItem>('predictions/forecast/', {}, accessToken);
-      if (result.status === 401) {
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          result = await api.post<PredictionItem>('predictions/forecast/', {}, newToken);
-        }
-      }
-      if (result.ok && result.data) {
-        setPrediction(result.data);
-      } else {
-        setPredictionError(result.message ?? 'Unable to generate forecast.');
-      }
-    } catch (error) {
-      setPredictionError('Unable to generate forecast right now.');
-    } finally {
-      setIsGeneratingForecast(false);
-    }
-  };
+  const displayName = user?.name?.trim() || 'there';
+  const savingsRate = toNumber(summary.savings_rate);
 
-  const selectedBudgetCategory = useMemo(
-    () => categories.find((item) => item.id === budgetCategoryId) ?? null,
-    [categories, budgetCategoryId],
+  const accountBalances: AccountBalance[] = useMemo(
+    () => [
+      { label: 'M-Pesa', amount: 45200 },
+      { label: 'Equity Bank', amount: 79400 },
+    ],
+    [],
   );
 
-  const spentByCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    breakdown.forEach((item) => {
-      map.set(item.category.toLowerCase(), toNumber(item.total));
-    });
-    return map;
-  }, [breakdown]);
-
-  const handleSaveBudget = async () => {
-    setBudgetError('');
-    if (!budgetCategoryId) {
-      setBudgetError('Select a category to budget for.');
-      return;
-    }
-    const amountValue = Number(normalizeAmountInput(budgetAmount));
-    if (!amountValue || amountValue <= 0) {
-      setBudgetError('Enter a valid budget amount.');
-      return;
-    }
-    if (!accessToken) {
-      setBudgetError('Sign in to save budgets.');
-      return;
-    }
-
-    setIsSavingBudget(true);
-    const monthValue = `${currentMonth}-01`;
-    const existing = budgets.find(
-      (budget) =>
-        budget.category.id === budgetCategoryId &&
-        budget.month.startsWith(currentMonth),
-    );
-    const payload = {
-      category_id: budgetCategoryId,
-      month: monthValue,
-      amount: amountValue,
-    };
-    try {
-      let result = existing
-        ? await api.patch<BudgetItem>(`budgets/${existing.id}/`, payload, accessToken)
-        : await api.post<BudgetItem>('budgets/', payload, accessToken);
-      if (result.status === 401) {
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          result = existing
-            ? await api.patch<BudgetItem>(`budgets/${existing.id}/`, payload, newToken)
-            : await api.post<BudgetItem>('budgets/', payload, newToken);
-        }
-      }
-      if (result.ok && result.data) {
-        setBudgets((prev) => {
-          if (existing) {
-            return prev.map((item) => (item.id === existing.id ? result.data : item));
-          }
-          return [result.data, ...prev];
-        });
-        setBudgetAmount('');
-      } else {
-        setBudgetError(result.message ?? 'Unable to save budget.');
-      }
-    } catch (error) {
-      setBudgetError('Unable to save budget right now.');
-    } finally {
-      setIsSavingBudget(false);
-    }
-  };
-
-  const handleDeleteBudget = async (id: number) => {
-    if (!accessToken) {
-      return;
-    }
-    try {
-      let result = await api.delete(`budgets/${id}/`, accessToken);
-      if (result.status === 401) {
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          result = await api.delete(`budgets/${id}/`, newToken);
-        }
-      }
-      if (result.ok) {
-        setBudgets((prev) => prev.filter((item) => item.id !== id));
-      } else {
-        setBudgetError(result.message ?? 'Unable to delete budget.');
-      }
-    } catch (error) {
-      setBudgetError('Unable to delete budget right now.');
-    }
-  };
-
-  const budgetProgress = useMemo(() => {
-    if (!budgets.length) {
-      return [];
-    }
-
-    return budgets.map((budget, index) => {
-      const spent = spentByCategory.get(budget.category.name.toLowerCase()) ?? 0;
-      const limit = toNumber(budget.amount);
-      const percent = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-      const isOver = spent > limit;
-      const colors = [palette.accentGreen, palette.cashBlue, palette.sidebar, palette.mpesaGreen];
-      const color = isOver ? '#EF4444' : colors[index % colors.length];
-      return {
-        category: budget.category.name,
-        percent,
-        color,
-      };
-    });
-  }, [budgets, spentByCategory]);
-
-  const savingsRate = toNumber(summary.savings_rate);
-  const summarySavingsRate = monthlySummary ? toNumber(monthlySummary.savings_rate) : 0;
+  const maskedAmount = '•••••';
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={palette.sidebar} />
+      <StatusBar barStyle="dark-content" backgroundColor={palette.surface} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Dashboard</Text>
-            <Text style={styles.headerSubtitle}>Report Period: This Month</Text>
-          </View>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Online</Text>
-          </View>
+        <View style={styles.greeting}>
+          <Text style={styles.greetingLabel}>{`${greeting},`}</Text>
+          <Text style={styles.greetingName}>{displayName}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Quick Actions</Text>
-          <View style={styles.quickActions}>
-            <Link href="/(tabs)/TransactionScreen" asChild>
-              <TouchableOpacity style={styles.quickCard}>
-                <Text style={styles.quickTitle}>Add Transaction</Text>
-                <Text style={styles.quickSubtitle}>Log income or expense</Text>
-              </TouchableOpacity>
-            </Link>
-            <Link href="/(tabs)/TransactionScreen" asChild>
-              <TouchableOpacity style={styles.quickCard}>
-                <Text style={styles.quickTitle}>View Transactions</Text>
-                <Text style={styles.quickSubtitle}>History & filters</Text>
-              </TouchableOpacity>
-            </Link>
-            <Link href="/(tabs)/ProfileScreen" asChild>
-              <TouchableOpacity style={styles.quickCard}>
-                <Text style={styles.quickTitle}>Profile</Text>
-                <Text style={styles.quickSubtitle}>Account settings</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={[styles.cardTitle, styles.cardTitleTight]}>Data Sources</Text>
-            <Text style={styles.cardHint}>M-Pesa & Bank</Text>
-          </View>
-          <Text style={styles.cardText}>
-            Connect accounts to import transactions and unlock richer insights.
-          </Text>
-          <Link href="/ConnectedAccountsScreen" asChild>
-            <TouchableOpacity style={styles.connectButton}>
-              <Text style={styles.connectButtonText}>Connect M-Pesa / Bank</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Financial Overview</Text>
-          <View style={styles.balanceRow}>
+        <LinearGradient
+          colors={[palette.sidebar, '#0B1220']}
+          style={styles.balanceCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.balanceHeader}>
             <Text style={styles.balanceLabel}>Total Balance</Text>
-            <Text style={styles.balanceValue}>{formatKes(summary.savings)}</Text>
-          </View>
-          <View style={styles.metricsGrid}>
-            <View style={styles.metricItem}>
-              <Text style={styles.metricLabel}>Total Income (This Month)</Text>
-              <Text style={[styles.metricValue, styles.metricIncome]}>
-                {formatKes(summary.income)}
-              </Text>
-            </View>
-            <View style={styles.metricItem}>
-              <Text style={styles.metricLabel}>Total Expenses (This Month)</Text>
-              <Text style={[styles.metricValue, styles.metricExpense]}>
-                {formatKes(summary.expenses)}
-              </Text>
-            </View>
-            <View style={styles.metricItem}>
-              <Text style={styles.metricLabel}>Savings Rate (%)</Text>
-              <Text style={[styles.metricValue, styles.metricSavings]}>
-                {`${savingsRate.toFixed(1)}%`}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {monthlySummary ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Monthly Summary</Text>
-            <Text style={styles.cardSubtitle}>{monthlySummary.month}</Text>
-            <View style={styles.metricsGrid}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Total Income</Text>
-                <Text style={[styles.metricValue, styles.metricIncome]}>
-                  {formatKes(monthlySummary.total_income)}
-                </Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Total Expense</Text>
-                <Text style={[styles.metricValue, styles.metricExpense]}>
-                  {formatKes(monthlySummary.total_expense)}
-                </Text>
-              </View>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Savings Rate</Text>
-                <Text style={[styles.metricValue, styles.metricSavings]}>
-                  {`${summarySavingsRate.toFixed(1)}%`}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Budgets ({currentMonth})</Text>
-          <View style={styles.budgetForm}>
-            <Text style={styles.label}>Category</Text>
             <TouchableOpacity
-              style={styles.dropdownTrigger}
-              onPress={() => setBudgetOpen((prev) => !prev)}
+              style={styles.eyeButton}
+              activeOpacity={0.8}
+              onPress={() => setShowBalances((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={showBalances ? 'Hide balances' : 'Show balances'}
             >
-              <Text style={styles.dropdownValue}>
-                {selectedBudgetCategory?.name ?? 'Select category'}
-              </Text>
-            </TouchableOpacity>
-            {budgetOpen ? (
-              <View style={styles.dropdownList}>
-                {categories.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setBudgetCategoryId(item.id);
-                      setBudgetOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{item.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : null}
-
-            <Text style={styles.label}>Monthly Budget Amount</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 8,000"
-              placeholderTextColor={palette.textSecondary}
-              keyboardType="numeric"
-              value={budgetAmount}
-              onChangeText={(value) => setBudgetAmount(normalizeAmountInput(value))}
-            />
-            {budgetError ? <Text style={styles.errorText}>{budgetError}</Text> : null}
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={handleSaveBudget}
-              disabled={isSavingBudget}
-            >
-              {isSavingBudget ? (
-                <ActivityIndicator color={palette.textPrimary} />
-              ) : (
-                <Text style={styles.saveButtonText}>Save Budget</Text>
-              )}
+              <Feather
+                name={showBalances ? 'eye' : 'eye-off'}
+                size={16}
+                color="rgba(255, 255, 255, 0.85)"
+              />
             </TouchableOpacity>
           </View>
-
-          <View style={styles.budgetList}>
-            {budgets.length ? (
-              budgets.map((budget) => {
-                const limit = toNumber(budget.amount);
-                const spent = spentByCategory.get(budget.category.name.toLowerCase()) ?? 0;
-                const remaining = limit - spent;
-                const percent = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-                const isOver = spent > limit;
-                return (
-                  <View key={budget.id} style={styles.budgetRow}>
-                    <View style={styles.budgetHeader}>
-                      <Text style={styles.budgetCategory}>{budget.category.name}</Text>
-                      <TouchableOpacity
-                        style={styles.budgetDelete}
-                        onPress={() => handleDeleteBudget(budget.id)}
-                      >
-                        <Text style={styles.budgetDeleteText}>Delete</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.budgetMeta}>
-                      <Text style={styles.budgetValue}>Budget: {formatKes(limit)}</Text>
-                      <Text style={[styles.budgetValue, isOver && styles.budgetOver]}>
-                        Spent: {formatKes(spent)}
-                      </Text>
-                      <Text style={styles.budgetValue}>
-                        Remaining: {formatKes(remaining)}
-                      </Text>
-                    </View>
-                    <View style={styles.progressTrack}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          {
-                            width: `${percent}%`,
-                            backgroundColor: isOver ? '#EF4444' : palette.accentGreen,
-                          },
-                        ]}
-                      />
-                    </View>
-                  </View>
-                );
-              })
-            ) : (
-              <Text style={styles.emptyText}>No budgets set for this month.</Text>
-            )}
+          <Text style={styles.balanceValue}>
+            {showBalances ? formatKes(summary.savings) : maskedAmount}
+          </Text>
+          <View style={styles.balanceChange}>
+            <Feather name="trending-up" size={14} color={palette.accentGreen} />
+            <Text style={styles.balanceChangeText}>{`${savingsRate.toFixed(1)}% this month`}</Text>
           </View>
-        </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={[styles.cardTitle, styles.cardTitleTight]}>Spending Trend</Text>
-            <Text style={styles.cardHint}>Last 6 months</Text>
+          <View style={styles.accountRow}>
+            {accountBalances.map((account) => (
+              <View key={account.label} style={styles.accountCard}>
+                <Text style={styles.accountLabel}>{account.label}</Text>
+                <Text style={styles.accountValue}>
+                  {showBalances ? formatCompact(account.amount) : maskedAmount}
+                </Text>
+              </View>
+            ))}
           </View>
-          {trend.length ? (
-            trend.map((item) => (
-              <View key={item.month} style={styles.trendRow}>
-                <Text style={styles.trendMonth}>{item.month}</Text>
-                <View style={styles.trendValues}>
-                  <Text style={styles.trendIncome}>{formatKes(item.income)}</Text>
-                  <Text style={styles.trendExpense}>{formatKes(item.expenses)}</Text>
-                  <Text style={styles.trendSavings}>{formatKes(item.savings)}</Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No trend data yet.</Text>
-          )}
-        </View>
+        </LinearGradient>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Budget Progress</Text>
-          {budgetProgress.length ? (
-            budgetProgress.map((item) => (
-              <View key={item.category} style={styles.progressRow}>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>{item.category}</Text>
-                  <Text style={styles.progressPercent}>{`${item.percent.toFixed(0)}% used`}</Text>
-                </View>
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${Math.min(item.percent, 100)}%`,
-                        backgroundColor: item.color,
-                      },
-                    ]}
-                  />
-                </View>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.quickRow}>
+          {quickActions.map((action) => (
+            <TouchableOpacity key={action.label} style={styles.quickCard} activeOpacity={0.85}>
+              <View style={[styles.quickIcon, { backgroundColor: action.background }]}>
+                <Feather name={action.icon} size={18} color={action.color} />
               </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No budgets set for this month.</Text>
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={[styles.cardTitle, styles.cardTitleTight]}>AI Insights</Text>
-            <TouchableOpacity
-              style={styles.actionPill}
-              onPress={handleGenerateRecommendations}
-              disabled={isGeneratingRecommendations}
-            >
-              {isGeneratingRecommendations ? (
-                <ActivityIndicator color={palette.textPrimary} />
-              ) : (
-                <Text style={styles.actionPillText}>Refresh</Text>
-              )}
+              <Text style={styles.quickLabel}>{action.label}</Text>
             </TouchableOpacity>
-          </View>
-          {insights.slice(0, 3).map((insight, index) => (
-            <View key={`${insight.message}-${index}`} style={styles.insightRow}>
-              <View style={styles.insightDot} />
-              <Text style={styles.insightText}>{insight.message}</Text>
-            </View>
           ))}
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={[styles.cardTitle, styles.cardTitleTight]}>Next Month Forecast</Text>
-            <TouchableOpacity
-              style={styles.actionPill}
-              onPress={handleGenerateForecast}
-              disabled={isGeneratingForecast}
-            >
-              {isGeneratingForecast ? (
-                <ActivityIndicator color={palette.textPrimary} />
-              ) : (
-                <Text style={styles.actionPillText}>Generate</Text>
-              )}
-            </TouchableOpacity>
+        <LinearGradient
+          colors={['#34D399', '#10B981']}
+          style={styles.insightCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <View style={styles.insightIcon}>
+            <Feather name="star" size={18} color="white" />
           </View>
-          {prediction ? (
-            <View style={styles.predictionRow}>
-              <Text style={styles.predictionLabel}>Predicted expenses for {prediction.month}</Text>
-              <Text style={styles.predictionValue}>{formatKes(prediction.predicted_expense)}</Text>
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>No forecast generated yet.</Text>
-          )}
-          {predictionError ? <Text style={styles.errorText}>{predictionError}</Text> : null}
+          <View style={styles.insightContent}>
+            <Text style={styles.insightTitle}>AI Insight</Text>
+            <Text style={styles.insightText}>
+              You're on track to save {formatKes(28450)} this month!
+            </Text>
+          </View>
+        </LinearGradient>
+
+        <View style={styles.activityHeader}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <TouchableOpacity activeOpacity={0.8}>
+            <Text style={styles.viewAll}>View all</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.activityList}>
+          {recentActivities.map((item) => {
+            const isPositive = item.amount >= 0;
+            return (
+              <View key={item.id} style={styles.activityCard}>
+                <View style={styles.activityIcon}>
+                  <Feather name={item.icon} size={18} color={palette.accentGreen} />
+                </View>
+                <View style={styles.activityDetails}>
+                  <Text style={styles.activityTitle}>{item.title}</Text>
+                  <View style={styles.activityMeta}>
+                    <Text style={styles.activityCategory}>{item.category}</Text>
+                    <View style={styles.activityTag}>
+                      <Text style={styles.activityTagText}>{item.source}</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text
+                  style={[
+                    styles.activityAmount,
+                    isPositive ? styles.activityAmountPositive : styles.activityAmountNegative,
+                  ]}
+                >
+                  {formatSigned(item.amount)}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
 
-      {isLoading ? (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={palette.accentGreen} />
-        </View>
-      ) : null}
       <BottomNav />
     </View>
   );
@@ -744,384 +356,223 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   content: {
-    padding: 20,
-    paddingBottom: 120,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 140,
   },
-  header: {
-    backgroundColor: palette.sidebar,
-    borderRadius: 18,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+  greeting: {
+    marginBottom: 18,
   },
-  headerTitle: {
-    color: palette.card,
-    fontSize: 24,
-    fontWeight: '700',
+  greetingLabel: {
+    fontSize: 14,
+    color: palette.textSecondary,
     marginBottom: 6,
   },
-  headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
+  greetingName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: palette.textPrimary,
   },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: palette.accentGreen,
-    marginRight: 6,
-  },
-  statusText: {
-    color: palette.card,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  card: {
-    backgroundColor: palette.card,
-    borderRadius: 18,
+  balanceCard: {
+    borderRadius: 22,
     padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(100, 116, 139, 0.2)',
+    marginBottom: 22,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 6,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: palette.textPrimary,
-    marginBottom: 12,
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: palette.textSecondary,
-    marginBottom: 12,
-  },
-  cardTitleTight: {
-    marginBottom: 0,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  cardHint: {
-    fontSize: 12,
-    color: palette.textSecondary,
-  },
-  cardText: {
-    fontSize: 13,
-    color: palette.textSecondary,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  connectButton: {
-    backgroundColor: 'rgba(74, 222, 128, 0.2)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.5)',
-  },
-  connectButtonText: {
-    color: palette.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  actionPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(74, 222, 128, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.5)',
-  },
-  actionPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: palette.textPrimary,
-  },
-  label: {
-    fontSize: 12,
-    color: palette.textSecondary,
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: 'rgba(100, 116, 139, 0.25)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: palette.textPrimary,
-    backgroundColor: palette.card,
-    marginBottom: 12,
-  },
-  dropdownTrigger: {
-    borderWidth: 1,
-    borderColor: 'rgba(100, 116, 139, 0.25)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: palette.card,
-    marginBottom: 12,
-  },
-  dropdownValue: {
-    color: palette.textPrimary,
-    fontSize: 14,
-  },
-  dropdownList: {
-    borderWidth: 1,
-    borderColor: 'rgba(100, 116, 139, 0.25)',
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: palette.card,
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(100, 116, 139, 0.12)',
-  },
-  dropdownItemText: {
-    color: palette.textPrimary,
-  },
-  saveButton: {
-    backgroundColor: palette.accentGreen,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: palette.textPrimary,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  budgetForm: {
-    marginBottom: 16,
-  },
-  budgetList: {
-    gap: 12,
-  },
-  budgetRow: {
-    borderWidth: 1,
-    borderColor: 'rgba(100, 116, 139, 0.2)',
-    borderRadius: 14,
-    padding: 12,
-  },
-  budgetHeader: {
+  balanceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  budgetCategory: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: palette.textPrimary,
-  },
-  budgetDelete: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  budgetDeleteText: {
-    color: '#B91C1C',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  budgetMeta: {
-    gap: 4,
     marginBottom: 10,
-  },
-  budgetValue: {
-    fontSize: 12,
-    color: palette.textSecondary,
-  },
-  budgetOver: {
-    color: '#B91C1C',
-    fontWeight: '700',
-  },
-  quickActions: {
-    gap: 12,
-  },
-  quickCard: {
-    borderRadius: 14,
-    padding: 14,
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.2)',
-  },
-  quickTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: palette.textPrimary,
-    marginBottom: 4,
-  },
-  quickSubtitle: {
-    fontSize: 12,
-    color: palette.textSecondary,
-  },
-  balanceRow: {
-    marginBottom: 16,
   },
   balanceLabel: {
     fontSize: 13,
-    color: palette.textSecondary,
-    marginBottom: 6,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  eyeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   balanceValue: {
     fontSize: 28,
     fontWeight: '700',
-    color: palette.textPrimary,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  trendRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(100, 116, 139, 0.12)',
-  },
-  trendMonth: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: palette.textPrimary,
-  },
-  trendValues: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  trendIncome: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: palette.mpesaGreen,
-  },
-  trendExpense: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: palette.cashBlue,
-  },
-  trendSavings: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: palette.textPrimary,
-  },
-  metricItem: {
-    width: '48%',
-    marginBottom: 12,
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: palette.textSecondary,
-    marginBottom: 6,
-  },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  metricIncome: {
-    color: palette.mpesaGreen,
-  },
-  metricExpense: {
-    color: palette.cashBlue,
-  },
-  metricSavings: {
-    color: palette.textPrimary,
-  },
-  progressRow: {
-    marginBottom: 16,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    color: palette.card,
     marginBottom: 8,
   },
-  progressLabel: {
+  balanceChange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+  },
+  balanceChangeText: {
+    fontSize: 12,
+    color: palette.accentGreen,
+    fontWeight: '600',
+  },
+  accountRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  accountCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
+    padding: 12,
+  },
+  accountLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 6,
+  },
+  accountValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: palette.card,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: palette.textPrimary,
+    marginBottom: 12,
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  viewAll: {
+    color: palette.accentGreen,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  activityList: {
+    gap: 12,
+  },
+  activityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: palette.card,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.14)',
+  },
+  activityIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(74, 222, 128, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  activityTitle: {
     fontSize: 14,
+    fontWeight: '700',
+    color: palette.textPrimary,
+    marginBottom: 6,
+  },
+  activityMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activityCategory: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  activityTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+  },
+  activityTagText: {
+    fontSize: 11,
+    color: palette.cashBlue,
+    fontWeight: '600',
+  },
+  activityAmount: {
+    minWidth: 72,
+    textAlign: 'right',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  activityAmountPositive: {
+    color: palette.accentGreen,
+  },
+  activityAmountNegative: {
+    color: palette.textPrimary,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 12,
+  },
+  quickCard: {
+    flex: 1,
+    backgroundColor: palette.card,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.16)',
+  },
+  quickIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickLabel: {
+    fontSize: 12,
     fontWeight: '600',
     color: palette.textPrimary,
   },
-  progressPercent: {
-    fontSize: 12,
-    color: palette.textSecondary,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(100, 116, 139, 0.18)',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  insightRow: {
+  insightCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    alignItems: 'center',
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
   },
-  insightDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: palette.accentGreen,
-    marginTop: 6,
-    marginRight: 10,
+  insightIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insightContent: {
+    flex: 1,
+  },
+  insightTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: palette.card,
+    marginBottom: 4,
   },
   insightText: {
-    flex: 1,
-    fontSize: 14,
-    color: palette.textSecondary,
-    lineHeight: 20,
-  },
-  predictionRow: {
-    gap: 8,
-  },
-  predictionLabel: {
     fontSize: 13,
-    color: palette.textSecondary,
-  },
-  predictionValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: palette.textPrimary,
-  },
-  emptyText: {
-    fontSize: 12,
-    color: palette.textSecondary,
-  },
-  errorText: {
-    fontSize: 12,
-    color: palette.cashBlue,
-    marginTop: 6,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(248, 250, 252, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 18,
   },
 });
