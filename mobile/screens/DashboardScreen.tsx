@@ -217,7 +217,7 @@ export default function DashboardScreen() {
     [],
   );
 
-  const maskedAmount = '•••••';
+  const maskedAmount = '*****';
 
   return (
     <View style={styles.screen}>

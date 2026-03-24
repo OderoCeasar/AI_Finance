@@ -26,6 +26,7 @@ const publicItems = [
 
 const appItems = [
   { label: 'Dashboard', path: '/Dashboard', icon: 'home' },
+  { label: 'Accounts', path: '/Accounts', icon: 'wallet' },
   {
     label: 'Transactions',
     path: '/(tabs)/TransactionScreen',
