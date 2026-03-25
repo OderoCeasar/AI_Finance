@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -151,6 +152,7 @@ const formatSigned = (value: number) => {
 };
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const { tokens, refreshAccessToken, user } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary>(fallbackSummary);
   const [showBalances, setShowBalances] = useState(true);
@@ -207,6 +209,17 @@ export default function DashboardScreen() {
   }, []);
 
   const displayName = user?.name?.trim() || 'there';
+  const avatarLabel = useMemo(() => {
+    const name = user?.name?.trim();
+    if (!name) {
+      return 'U';
+    }
+    const parts = name.split(' ').filter(Boolean);
+    if (parts.length === 1) {
+      return parts[0].slice(0, 1).toUpperCase();
+    }
+    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+  }, [user?.name]);
   const savingsRate = toNumber(summary.savings_rate);
 
   const accountBalances: AccountBalance[] = useMemo(
@@ -227,9 +240,20 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.greeting}>
-          <Text style={styles.greetingLabel}>{`${greeting},`}</Text>
-          <Text style={styles.greetingName}>{displayName}</Text>
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingText}>
+            <Text style={styles.greetingLabel}>{`${greeting},`}</Text>
+            <Text style={styles.greetingName}>{displayName}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.avatarButton}
+            onPress={() => router.push('/(tabs)/ProfileScreen')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          >
+            <Text style={styles.avatarText}>{avatarLabel}</Text>
+          </TouchableOpacity>
         </View>
 
         <LinearGradient
@@ -360,8 +384,14 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 140,
   },
-  greeting: {
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 18,
+  },
+  greetingText: {
+    flex: 1,
   },
   greetingLabel: {
     fontSize: 14,
@@ -370,6 +400,22 @@ const styles = StyleSheet.create({
   },
   greetingName: {
     fontSize: 22,
+    fontWeight: '700',
+    color: palette.textPrimary,
+  },
+  avatarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  avatarText: {
+    fontSize: 16,
     fontWeight: '700',
     color: palette.textPrimary,
   },

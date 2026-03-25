@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
@@ -8,14 +8,16 @@ import { useAuth } from '@/lib/auth';
 type NavVariant = 'public' | 'app';
 
 const palette = {
-  accentGreen: '#4ADE80',
+  accentGreen: '#22C55E',
+  activeGreen: '#22C55E',
+  activeGreenBg: '#DCFCE7',
   sidebar: '#1E293B',
-  textSecondary: '#64748B',
+  textSecondary: '#94A3B8',
   textPrimary: '#0F172A',
   cashBlue: '#2563EB',
   mpesaGreen: '#10B981',
   surface: '#F8FAFC',
-  card: '#FFFFFF',
+  card: '#F8FAFC',
 };
 
 const publicItems = [
@@ -25,12 +27,42 @@ const publicItems = [
 ];
 
 const appItems = [
-  { label: 'Dashboard', path: '/Dashboard', icon: 'home' },
-  { label: 'Accounts', path: '/Accounts', icon: 'wallet' },
-  { label: 'Activity', path: '/Activity', icon: 'profile' },
-  { label: 'Budgets', path: '/Budgets', icon: 'piechart' },
-  { label: 'Insights', path: '/Insights', icon: 'bulb1' },
-  { label: 'Profile', path: '/(tabs)/ProfileScreen', icon: 'user' },
+  {
+    label: 'Home',
+    path: '/Dashboard',
+    icon: 'custom-home',
+    source: require('@/assets/images/home-icon.png'),
+    tint: false,
+  },
+  {
+    label: 'Accounts',
+    path: '/Accounts',
+    icon: 'custom-accounts',
+    source: require('@/assets/images/accounts-icon-finance.png'),
+    tint: false,
+    iconSize: 30,
+  },
+  {
+    label: 'Activity',
+    path: '/Activity',
+    icon: 'custom-activity',
+    source: require('@/assets/images/activity-icon.png'),
+    tint: false,
+  },
+  {
+    label: 'Budgets',
+    path: '/Budgets',
+    icon: 'custom-budgets',
+    source: require('@/assets/images/budgets-icon.jpg'),
+    tint: false,
+  },
+  {
+    label: 'Insights',
+    path: '/Insights',
+    icon: 'custom-insights',
+    source: require('@/assets/images/insights-icon.avif'),
+    tint: false,
+  },
 ];
 
 type BottomNavProps = {
@@ -70,31 +102,36 @@ export default function BottomNav({ variant }: BottomNavProps) {
       <View style={styles.bar}>
         {items.map((item) => {
           const active = isActive(item.path);
+          const iconColor = active ? palette.activeGreen : palette.textSecondary;
           return (
             <TouchableOpacity
               key={item.path}
-              style={[styles.button, active && styles.buttonActive]}
+              style={styles.button}
               onPress={() => router.replace(item.path)}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel={item.label}
             >
-              {item.icon === 'custom-transaction' ? (
+              <View style={[styles.iconWrap, active && styles.iconWrapActive]}>
+                {item.source ? (
                 <Image
                   source={item.source}
                   style={[
                     styles.customIcon,
-                    { tintColor: active ? palette.textPrimary : palette.textSecondary },
+                    item.iconSize ? { width: item.iconSize, height: item.iconSize } : null,
+                    item.tint === false ? null : { tintColor: iconColor },
                   ]}
                   resizeMode="contain"
                 />
-              ) : (
-                <AntDesign
-                  name={item.icon as keyof typeof AntDesign.glyphMap}
-                  size={20}
-                  color={active ? palette.textPrimary : palette.textSecondary}
-                />
-              )}
+                ) : (
+                  <AntDesign
+                    name={item.icon as keyof typeof AntDesign.glyphMap}
+                    size={20}
+                    color={iconColor}
+                  />
+                )}
+              </View>
+              <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -109,22 +146,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
   },
   bar: {
     flexDirection: 'row',
     gap: 6,
     backgroundColor: palette.card,
-    borderRadius: 18,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(100, 116, 139, 0.2)',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 4,
+    borderRadius: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+    shadowColor: 'transparent',
+    elevation: 0,
   },
   button: {
     flex: 1,
@@ -133,11 +168,28 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
   },
-  buttonActive: {
-    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapActive: {
+    backgroundColor: palette.activeGreenBg,
+    transform: [{ scale: 1.1 }],
   },
   customIcon: {
     width: 26,
     height: 26,
+  },
+  label: {
+    marginTop: 4,
+    fontSize: 10,
+    fontWeight: '600',
+    color: palette.textSecondary,
+  },
+  labelActive: {
+    color: palette.activeGreen,
   },
 });
