@@ -1,10 +1,10 @@
 # OptiFi
 
-A starter full-stack repository for an AI-powered personal finance product.
+A starter full-stack repository for an AI-powered personal finance product(OptiFi).
 
 Current state:
-- `backend/` is a Django 6 starter project with two apps (`users`, `transactions`) created but not yet modeled.
-- `frontend/` currently contains the Expo examples collection, plus many sample apps (not yet wired to the Django backend).
+- `backend/` working backend
+- `mobile/` working frontend
 
 ## Repository Structure
 
@@ -16,10 +16,8 @@ ai_finance/
 │   ├── transactions/           # Planned transaction domain app
 │   ├── manage.py
 │   └── requirements.txt
-├── frontend/
+├── mobile/
 │   ├── README.md               # Expo examples documentation
-│   ├── with-router/            # Example app templates
-│   ├── with-router-ai/
 │   └── ... many other Expo examples
 └── .gitignore
 ```
@@ -33,7 +31,7 @@ Backend:
 - django-cors-headers 4.9.0
 - SQLite (default local DB)
 
-Frontend:
+Mobile:
 - Expo / React Native example projects
 - JavaScript / TypeScript depending on selected example
 
@@ -45,8 +43,8 @@ Backend:
 - SQLite database is configured
 - Two domain apps (`users`, `transactions`) are scaffolded
 
-Frontend:
-- Example Expo apps are available under `frontend/`
+Mobile:
+- Example Expo apps are available under `mobile/`
 - Frontend is not yet standardized to a single app target for this repo
 
 ## Quick Start
@@ -54,36 +52,39 @@ Frontend:
 ### 1. Clone and enter the repo
 
 ```bash
-git clone https://github.com/OderoCeasar/OptiFi.git
-cd OptiFi
+git clone https://github.com/OderoCeasar/AI_Finance.git 
+cd AI_Finance
 ```
 
 ### 2. Run the backend (Django)
+python3 = Linux
+python = Windows
 
 ```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+python3 manage.py migrate
+python3 manage.py runserver
+
+# Creating admin user
+python3 manage.py createsuperuser
 ```
 
 Backend URLs:
 - App: `http://127.0.0.1:8000/`
 - Admin: `http://127.0.0.1:8000/admin/`
 
-### 3. Run a frontend example (Expo)
+### 3. Run a frontend (Expo)
 
 Pick one frontend example folder, then run it:
 
 ```bash
-cd frontend/with-router
+cd mobile
 pnpm install
-pnpm expo start
+pnpm start
 ```
-
-You can substitute `with-router` with any example in `frontend/`.
 
 ## Environment and Configuration
 
@@ -114,14 +115,6 @@ Planned API surface (suggested):
 - `GET /api/insights`
 - `POST /api/ai/categorize`
 
-## Recommended Next Milestones
-
-1. Define core data models in `users` and `transactions` apps.
-2. Add DRF serializers, viewsets, and URL routing under `/api/`.
-3. Pick one frontend app target (for example `with-router`) and remove unused examples.
-4. Add `.env` support and production-safe settings split.
-5. Add tests for model logic and API behavior.
-6. Add CI (lint + tests) and deployment config.
 
 ## Development Notes
 
