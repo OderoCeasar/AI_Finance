@@ -14,6 +14,7 @@ export type ApiResult<T> = {
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api';
+const API_LOGGING_ENABLED = process.env.EXPO_PUBLIC_API_LOGS === 'true';
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -42,21 +43,29 @@ const buildHeaders = (token?: string | null) => {
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<ApiResult<T>> => {
   const { method = 'GET', body, token } = options;
   const url = buildUrl(path);
-  console.log('[API] Request:', { method, url, body: !!body });
+  if (API_LOGGING_ENABLED) {
+    console.log('[API] Request:', { method, url, body: !!body });
+  }
   const response = await fetch(url, {
     method,
     headers: buildHeaders(token),
     body: body ? JSON.stringify(body) : undefined,
   });
-  console.log('[API] Response status:', response.status);
+  if (API_LOGGING_ENABLED) {
+    console.log('[API] Response status:', response.status);
+  }
 
   let payload: ApiResponse<T> | null = null;
   try {
     const text = await response.text();
-    console.log('[API] Response body:', text.substring(0, 500));
+    if (API_LOGGING_ENABLED) {
+      console.log('[API] Response body:', text.substring(0, 500));
+    }
     payload = JSON.parse(text) as ApiResponse<T>;
   } catch (error) {
-    console.log('[API] JSON parse error:', error);
+    if (API_LOGGING_ENABLED) {
+      console.log('[API] JSON parse error:', error);
+    }
     payload = null;
   }
 
