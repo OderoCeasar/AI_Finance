@@ -27,13 +27,9 @@ const publicItems = [
 const appItems = [
   { label: 'Dashboard', path: '/Dashboard', icon: 'home' },
   { label: 'Accounts', path: '/Accounts', icon: 'wallet' },
-  {
-    label: 'Transactions',
-    path: '/(tabs)/TransactionScreen',
-    icon: 'custom-transaction',
-    source: require('@/assets/images/transaction-icon.png'),
-  },
-  { label: 'Add', path: '/AddTransaction', icon: 'plus' },
+  { label: 'Activity', path: '/Activity', icon: 'profile' },
+  { label: 'Budgets', path: '/Budgets', icon: 'piechart' },
+  { label: 'Insights', path: '/Insights', icon: 'bulb1' },
   { label: 'Profile', path: '/(tabs)/ProfileScreen', icon: 'user' },
 ];
 
