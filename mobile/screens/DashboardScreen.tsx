@@ -168,7 +168,7 @@ export default function DashboardScreen() {
     const fetchDashboard = async () => {
       try {
         const fetchWithRefresh = async <T,>(
-          fetcher: (token: string) => Promise<ReturnType<typeof api.get<T>>>,
+          fetcher: (token: string) => ReturnType<typeof api.get<T>>,
         ) => {
           let result = await fetcher(accessToken);
           if (result.status === 401) {
