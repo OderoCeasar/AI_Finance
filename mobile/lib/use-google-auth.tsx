@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 type GoogleAuthResult = {
   isLoading: boolean;
@@ -11,13 +14,19 @@ type GoogleAuthResult = {
 };
 
 type GoogleAuthOptions = {
-  clientId?: string;
+  expoClientId?: string;
+  androidClientId?: string;
+  iosClientId?: string;
+  webClientId?: string;
   redirectPath?: string;
   onSuccess: (idToken: string) => Promise<void> | void;
 };
 
 export function useGoogleAuth({
-  clientId,
+  expoClientId,
+  androidClientId,
+  iosClientId,
+  webClientId,
   redirectPath,
   onSuccess,
 }: GoogleAuthOptions): GoogleAuthResult {
@@ -25,25 +34,67 @@ export function useGoogleAuth({
   const [isLoading, setIsLoading] = useState(false);
 
   const isWeb = Platform.OS === 'web';
-  WebBrowser.maybeCompleteAuthSession({ skipRedirectCheck: isWeb });
+  const isExpoGo = Constants.appOwnership === 'expo';
 
-  const googleClientId = clientId ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+  const resolvedIds = useMemo(
+    () => ({
+      expoClientId:
+        expoClientId ??
+        process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID ??
+        process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      androidClientId: androidClientId ?? process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+      iosClientId: iosClientId ?? process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      webClientId:
+        webClientId ??
+        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ??
+        process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    }),
+    [expoClientId, androidClientId, iosClientId, webClientId],
+  );
 
-  if (!googleClientId) {
-    throw new Error('EXPO_PUBLIC_GOOGLE_CLIENT_ID is missing in the environment.');
+  if (isWeb && !resolvedIds.webClientId) {
+    throw new Error('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is missing in the environment.');
   }
 
-  const redirectUri = AuthSession.makeRedirectUri({
-    useProxy: !isWeb,
-    path: isWeb ? redirectPath : undefined,
-  });
+  const owner = Constants.expoConfig?.owner;
+  const slug = Constants.expoConfig?.slug;
+  const projectNameForProxy =
+    (owner && slug ? `@${owner}/${slug}` : undefined) ??
+    process.env.EXPO_PUBLIC_EXPO_PROJECT_FULL_NAME;
+
+  const useProxy = !isWeb && isExpoGo;
+  const proxyRedirectUri = projectNameForProxy
+    ? `https://auth.expo.io/${projectNameForProxy}`
+    : undefined;
+  const redirectUri = useProxy
+    ? proxyRedirectUri
+    : AuthSession.makeRedirectUri({
+        // Use custom scheme for dev builds/standalone, web uses window.location.
+        path: isWeb ? redirectPath : undefined,
+      });
+  if (useProxy && !proxyRedirectUri && process.env.NODE_ENV !== 'production') {
+    console.warn(
+      '[GoogleAuth] Missing projectNameForProxy. Set EXPO_PUBLIC_EXPO_PROJECT_FULL_NAME to "@owner/slug".'
+    );
+  }
   if (process.env.NODE_ENV !== 'production') {
-    console.log('[GoogleAuth] redirectUri:', redirectUri);
+    console.log(
+      '[GoogleAuth] redirectUri:',
+      redirectUri,
+      'useProxy:',
+      useProxy,
+      'projectNameForProxy:',
+      projectNameForProxy,
+      'appOwnership:',
+      Constants.appOwnership,
+    );
   }
+
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: googleClientId,
-    webClientId: googleClientId,
-    expoClientId: googleClientId,
+    expoClientId: resolvedIds.expoClientId,
+    androidClientId: resolvedIds.androidClientId,
+    iosClientId: resolvedIds.iosClientId,
+    webClientId: resolvedIds.webClientId,
     redirectUri,
     responseType: AuthSession.ResponseType.IdToken,
     scopes: ['openid', 'profile', 'email'],
@@ -124,7 +175,8 @@ export function useGoogleAuth({
       promptAsync({ windowName: '_self' });
       return;
     }
-    promptAsync({ useProxy: true, preferEphemeralSession: true });
+    // Expo Go requires proxy; dev builds/standalone should not use it.
+    promptAsync({ useProxy, preferEphemeralSession: true });
   };
 
   return {

@@ -123,4 +123,4 @@ EMAIL_BACKEND = os.getenv(
 )
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-nano")
