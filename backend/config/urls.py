@@ -10,4 +10,5 @@ urlpatterns = [
     path(f"{API_PREFIX}analytics/", include("analytics.urls")),
     path(f"{API_PREFIX}predictions/", include("predictions.urls")),
     path(f"{API_PREFIX}recommendations/", include("recommendations.urls")),
+    path(f"{API_PREFIX}integrations/mpesa/", include("mpesa.urls")),
 ]

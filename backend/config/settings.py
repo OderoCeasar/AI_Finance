@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "analytics",
     "predictions",
     "recommendations",
+    "mpesa",
 ]
 
 MIDDLEWARE = [
