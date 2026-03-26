@@ -11,11 +11,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from transactions.models import Budget, Category, Transaction
+from transactions.models import Budget, Category, Transaction, SavingsGoal
 from transactions.serializers import (
     BudgetSerializer,
     CategorySerializer,
     MonthlySummarySerializer,
+    SavingsGoalSerializer,
     TransactionSerializer,
 )
 from transactions.services import categorize_transaction, initialize_global_categories, update_or_create_monthly_summary
@@ -33,6 +34,10 @@ TRANSACTION_RETRIEVE_MESSAGE = "Transaction retrieved successfully."
 TRANSACTION_UPDATE_MESSAGE = "Transaction updated successfully."
 TRANSACTION_DELETE_MESSAGE = "Transaction deleted successfully."
 SUMMARY_MESSAGE = "Monthly summary retrieved successfully."
+SAVINGS_LIST_MESSAGE = "Savings goals retrieved successfully."
+SAVINGS_CREATE_MESSAGE = "Savings goal created successfully."
+SAVINGS_UPDATE_MESSAGE = "Savings goal updated successfully."
+SAVINGS_DELETE_MESSAGE = "Savings goal deleted successfully."
 VALIDATION_FAILED_MESSAGE = "Validation failed."
 GENERIC_ERROR_MESSAGE = "We could not process your request."
 NOT_FOUND_MESSAGE = "Resource not found."
@@ -389,3 +394,62 @@ class TransactionViewSet(
         summary = update_or_create_monthly_summary(request.user, month_date)
         data = MonthlySummarySerializer(summary).data
         return Response(build_response(True, data, SUMMARY_MESSAGE), status=status.HTTP_200_OK)
+
+
+class SavingsGoalViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """CRUD endpoints for authenticated user savings goals."""
+
+    serializer_class = SavingsGoalSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return SavingsGoal.objects.filter(user=self.request.user).order_by("-created_at")
+
+    def list(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(
+            build_response(True, serializer.data, SAVINGS_LIST_MESSAGE),
+            status=status.HTTP_200_OK,
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                build_response(False, serializer.errors, VALIDATION_FAILED_MESSAGE),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        goal = serializer.save(user=request.user)
+        return Response(
+            build_response(True, self.get_serializer(goal).data, SAVINGS_CREATE_MESSAGE),
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request, *args, **kwargs):
+        goal = self.get_object()
+        serializer = self.get_serializer(goal, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(
+                build_response(False, serializer.errors, VALIDATION_FAILED_MESSAGE),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        goal = serializer.save()
+        return Response(
+            build_response(True, self.get_serializer(goal).data, SAVINGS_UPDATE_MESSAGE),
+            status=status.HTTP_200_OK,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        goal = self.get_object()
+        goal.delete()
+        return Response(
+            build_response(True, None, SAVINGS_DELETE_MESSAGE),
+            status=status.HTTP_200_OK,
+        )

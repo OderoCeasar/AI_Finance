@@ -39,85 +39,34 @@ type QuickAction = {
   icon: keyof typeof Feather.glyphMap;
   color: string;
   background: string;
-};
-
-type AccountBalance = {
-  label: string;
-  amount: number;
+  onPress?: () => void;
 };
 
 type ActivityItem = {
-  id: string;
+  id: number;
   title: string;
   category: string;
-  source: string;
   amount: number;
   icon: keyof typeof Feather.glyphMap;
+  tag: string;
 };
 
-const fallbackSummary: DashboardSummary = {
-  income: 120000,
-  expenses: 72000,
-  savings: 124580,
-  savings_rate: 12.5,
-  top_categories: [],
+type TransactionItem = {
+  id: number;
+  amount: number | string;
+  type: 'income' | 'expense';
+  description: string;
+  date: string;
+  category?: { id: number; name: string } | null;
 };
 
-const quickActions: QuickAction[] = [
-  {
-    label: 'Send',
-    icon: 'arrow-up-right',
-    color: '#16A34A',
-    background: 'rgba(34, 197, 94, 0.15)',
-  },
-  {
-    label: 'Receive',
-    icon: 'arrow-down-left',
-    color: '#EA580C',
-    background: 'rgba(249, 115, 22, 0.15)',
-  },
-  {
-    label: 'Budget',
-    icon: 'pie-chart',
-    color: '#2563EB',
-    background: 'rgba(37, 99, 235, 0.12)',
-  },
-  {
-    label: 'Save',
-    icon: 'dollar-sign',
-    color: '#CA8A04',
-    background: 'rgba(234, 179, 8, 0.18)',
-  },
-];
+type MpesaStatus = {
+  phone_number: string;
+  status: 'pending' | 'connected' | 'disconnected' | 'error';
+  last_sync: string | null;
+};
 
-const recentActivities: ActivityItem[] = [
-  {
-    id: 'zara',
-    title: 'Zara - Westgate',
-    category: 'Shopping',
-    source: 'M-Pesa',
-    amount: -4800,
-    icon: 'shopping-bag',
-  },
-  {
-    id: 'salary',
-    title: 'Salary Deposit',
-    category: 'Income',
-    source: 'Equity',
-    amount: 95000,
-    icon: 'briefcase',
-  },
-  {
-    id: 'java',
-    title: 'Java House',
-    category: 'Food',
-    source: 'M-Pesa',
-    amount: -890,
-    icon: 'coffee',
-  },
-];
-
-const toNumber = (value: number | string) => {
+const toNumber = (value: number | string | null | undefined) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
 };
@@ -135,16 +84,6 @@ const formatKes = (value: number | string) => {
   }
 };
 
-const formatCompact = (value: number) => {
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}K`;
-  }
-  return value.toFixed(0);
-};
-
 const formatSigned = (value: number) => {
   const sign = value >= 0 ? '+' : '-';
   const abs = Math.abs(value);
@@ -154,7 +93,9 @@ const formatSigned = (value: number) => {
 export default function DashboardScreen() {
   const router = useRouter();
   const { tokens, refreshAccessToken, user } = useAuth();
-  const [summary, setSummary] = useState<DashboardSummary>(fallbackSummary);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
+  const [mpesaStatus, setMpesaStatus] = useState<MpesaStatus | null>(null);
   const [showBalances, setShowBalances] = useState(true);
   const accessToken = tokens?.access;
 
@@ -180,16 +121,43 @@ export default function DashboardScreen() {
           return result;
         };
 
-        const summaryRes = await fetchWithRefresh((token) =>
-          api.get<DashboardSummary>('analytics/dashboard/', token),
-        );
+        const [summaryRes, transactionsRes, mpesaRes] = await Promise.all([
+          fetchWithRefresh((token) => api.get<DashboardSummary>('analytics/dashboard/', token)),
+          fetchWithRefresh((token) => api.get<{ results?: TransactionItem[] } | TransactionItem[]>('transactions/', token)),
+          fetchWithRefresh((token) => api.get<MpesaStatus>('integrations/mpesa/status/', token)),
+        ]);
 
-        if (isMounted && summaryRes.ok && summaryRes.data) {
-          setSummary(summaryRes.data);
+        if (isMounted) {
+          setSummary(summaryRes.ok && summaryRes.data ? summaryRes.data : null);
+
+          if (transactionsRes.ok && transactionsRes.data) {
+            const items = Array.isArray(transactionsRes.data)
+              ? transactionsRes.data
+              : transactionsRes.data.results ?? [];
+            const mapped = items.slice(0, 3).map((item) => {
+              const amount = toNumber(item.amount);
+              const isIncome = item.type === 'income';
+              return {
+                id: item.id,
+                title: item.description || 'Transaction',
+                category: item.category?.name ?? 'Uncategorized',
+                amount: isIncome ? amount : -amount,
+                icon: isIncome ? 'briefcase' : 'shopping-bag',
+                tag: item.type.toUpperCase(),
+              };
+            });
+            setRecentActivities(mapped);
+          } else {
+            setRecentActivities([]);
+          }
+
+          setMpesaStatus(mpesaRes.ok ? mpesaRes.data ?? null : null);
         }
       } catch (error) {
         if (isMounted) {
-          setSummary(fallbackSummary);
+          setSummary(null);
+          setRecentActivities([]);
+          setMpesaStatus(null);
         }
       }
     };
@@ -220,14 +188,38 @@ export default function DashboardScreen() {
     }
     return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
   }, [user?.name]);
-  const savingsRate = toNumber(summary.savings_rate);
+  const savingsRate = toNumber(summary?.savings_rate);
 
-  const accountBalances: AccountBalance[] = useMemo(
+  const quickActions: QuickAction[] = useMemo(
     () => [
-      { label: 'M-Pesa', amount: 45200 },
-      { label: 'Equity Bank', amount: 79400 },
+      {
+        label: 'Send',
+        icon: 'arrow-up-right',
+        color: '#16A34A',
+        background: 'rgba(34, 197, 94, 0.15)',
+      },
+      {
+        label: 'Receive',
+        icon: 'arrow-down-left',
+        color: '#EA580C',
+        background: 'rgba(249, 115, 22, 0.15)',
+      },
+      {
+        label: 'Budget',
+        icon: 'pie-chart',
+        color: '#2563EB',
+        background: 'rgba(37, 99, 235, 0.12)',
+        onPress: () => router.push('/Budgets'),
+      },
+      {
+        label: 'Save',
+        icon: 'dollar-sign',
+        color: '#CA8A04',
+        background: 'rgba(234, 179, 8, 0.18)',
+        onPress: () => router.push('/SavingsScreen'),
+      },
     ],
-    [],
+    [router],
   );
 
   const maskedAmount = '*****';
@@ -279,29 +271,34 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.balanceValue}>
-            {showBalances ? formatKes(summary.savings) : maskedAmount}
+            {showBalances ? formatKes(toNumber(summary?.savings)) : maskedAmount}
           </Text>
           <View style={styles.balanceChange}>
             <Feather name="trending-up" size={14} color={palette.accentGreen} />
-            <Text style={styles.balanceChangeText}>{`${savingsRate.toFixed(1)}% this month`}</Text>
+            <Text style={styles.balanceChangeText}>
+              {summary ? `${savingsRate.toFixed(1)}% this month` : 'No data yet'}
+            </Text>
           </View>
 
           <View style={styles.accountRow}>
-            {accountBalances.map((account) => (
-              <View key={account.label} style={styles.accountCard}>
-                <Text style={styles.accountLabel}>{account.label}</Text>
-                <Text style={styles.accountValue}>
-                  {showBalances ? formatCompact(account.amount) : maskedAmount}
-                </Text>
-              </View>
-            ))}
+            <View style={styles.accountEmptyCard}>
+              <Text style={styles.accountLabel}>Connect accounts</Text>
+              <Text style={styles.accountValue}>
+                {showBalances ? '—' : maskedAmount}
+              </Text>
+            </View>
           </View>
         </LinearGradient>
 
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.quickRow}>
           {quickActions.map((action) => (
-            <TouchableOpacity key={action.label} style={styles.quickCard} activeOpacity={0.85}>
+            <TouchableOpacity
+              key={action.label}
+              style={styles.quickCard}
+              activeOpacity={0.85}
+              onPress={action.onPress}
+            >
               <View style={[styles.quickIcon, { backgroundColor: action.background }]}>
                 <Feather name={action.icon} size={18} color={action.color} />
               </View>
@@ -322,10 +319,30 @@ export default function DashboardScreen() {
           <View style={styles.insightContent}>
             <Text style={styles.insightTitle}>AI Insight</Text>
             <Text style={styles.insightText}>
-              You're on track to save {formatKes(28450)} this month!
+              {summary
+                ? `Your savings rate is ${savingsRate.toFixed(1)}% this month.`
+                : 'Add transactions to unlock personalized insights.'}
             </Text>
           </View>
         </LinearGradient>
+
+        {mpesaStatus?.status !== 'connected' ? (
+          <View style={styles.connectCard}>
+            <View style={styles.connectHeader}>
+              <Feather name="link" size={18} color={palette.accentGreen} />
+              <Text style={styles.connectTitle}>Connect M-Pesa</Text>
+            </View>
+            <Text style={styles.connectSubtitle}>
+              Import your M-Pesa transactions to unlock smarter insights and auto-tracking.
+            </Text>
+            <TouchableOpacity
+              style={styles.connectButton}
+              onPress={() => router.push('/ConnectAccountsPlusScreen')}
+            >
+              <Text style={styles.connectButtonText}>Connect Now</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={styles.activityHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -335,6 +352,9 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.activityList}>
+          {recentActivities.length === 0 ? (
+            <Text style={styles.emptyState}>No recent activity yet.</Text>
+          ) : null}
           {recentActivities.map((item) => {
             const isPositive = item.amount >= 0;
             return (
@@ -347,7 +367,7 @@ export default function DashboardScreen() {
                   <View style={styles.activityMeta}>
                     <Text style={styles.activityCategory}>{item.category}</Text>
                     <View style={styles.activityTag}>
-                      <Text style={styles.activityTagText}>{item.source}</Text>
+                      <Text style={styles.activityTagText}>{item.tag}</Text>
                     </View>
                   </View>
                 </View>
@@ -468,6 +488,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  accountEmptyCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
   accountCard: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -497,6 +525,45 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 12,
   },
+  connectCard: {
+    backgroundColor: palette.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.35)',
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  connectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  connectTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: palette.textPrimary,
+  },
+  connectSubtitle: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  connectButton: {
+    backgroundColor: 'rgba(74, 222, 128, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.5)',
+  },
+  connectButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: palette.textPrimary,
+  },
   viewAll: {
     color: palette.accentGreen,
     fontSize: 12,
@@ -504,6 +571,11 @@ const styles = StyleSheet.create({
   },
   activityList: {
     gap: 12,
+  },
+  emptyState: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    marginBottom: 6,
   },
   activityCard: {
     flexDirection: 'row',

@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from transactions.models import Budget, Category, MonthlySummary, Transaction
+from transactions.models import Budget, Category, MonthlySummary, Transaction, SavingsGoal
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -79,6 +79,15 @@ class MonthlySummarySerializer(serializers.ModelSerializer):
         if obj.total_income == 0:
             return Decimal("0.00")
         return round((obj.savings / obj.total_income) * Decimal("100.00"), 2)
+
+
+class SavingsGoalSerializer(serializers.ModelSerializer):
+    """Serialize savings goals."""
+
+    class Meta:
+        model = SavingsGoal
+        fields = ["id", "user", "name", "target_amount", "current_amount", "monthly_target", "created_at"]
+        read_only_fields = ["id", "user", "created_at"]
 
 
 class BudgetSerializer(serializers.ModelSerializer):

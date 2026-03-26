@@ -96,3 +96,20 @@ class MonthlySummary(models.Model):
     def __str__(self):
         """Return a human-readable monthly summary identifier."""
         return f"{self.user.email} - {self.month.strftime('%Y-%m')}"
+
+
+class SavingsGoal(models.Model):
+    """User savings goal tracking."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="savings_goals")
+    name = models.CharField(max_length=120)
+    target_amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    current_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    monthly_target = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.name}"
