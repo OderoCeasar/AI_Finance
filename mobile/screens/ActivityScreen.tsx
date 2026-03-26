@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -12,6 +13,8 @@ import {
 import { Feather } from '@expo/vector-icons';
 
 import BottomNav from '@/components/bottom-nav';
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -32,7 +35,7 @@ type CategoryChip = {
 };
 
 type ActivityItem = {
-  id: string;
+  id: number;
   title: string;
   category: string;
   time: string;
@@ -41,96 +44,23 @@ type ActivityItem = {
   icon: keyof typeof Feather.glyphMap;
   badge?: string;
 };
+type CategoryOption = {
+  id: number;
+  name: string;
+};
 
-const categoryChips: CategoryChip[] = [
-  { id: 'all', label: 'All', count: 247, active: true },
-  { id: 'shopping', label: 'Shopping', count: 52 },
-  { id: 'bills', label: 'Bills', count: 23 },
-  { id: 'transport', label: 'Transport', count: 31 },
-  { id: 'food', label: 'Food', count: 89 },
-];
+type TransactionItem = {
+  id: number;
+  amount: number | string;
+  type: 'income' | 'expense';
+  description: string;
+  date: string;
+  category?: CategoryOption | null;
+};
 
-const todayActivities: ActivityItem[] = [
-  {
-    id: 'zara',
-    title: 'Zara - Westgate',
-    category: 'Shopping',
-    time: '2:45 PM',
-    source: 'M-Pesa',
-    amount: -4800,
-    icon: 'shopping-bag',
-  },
-  {
-    id: 'java',
-    title: 'Java House',
-    category: 'Food & Dining',
-    time: '12:30 PM',
-    source: 'Equity',
-    amount: -890,
-    icon: 'coffee',
-  },
-  {
-    id: 'uber',
-    title: 'Uber',
-    category: 'Transport',
-    time: '8:15 AM',
-    source: 'M-Pesa',
-    amount: -650,
-    icon: 'truck',
-  },
-];
-
-const yesterdayActivities: ActivityItem[] = [
-  {
-    id: 'salary',
-    title: 'Salary - Tech',
-    category: 'Income',
-    time: '9:00 AM',
-    source: 'Equity',
-    amount: 95000,
-    icon: 'dollar-sign',
-    badge: 'Income',
-  },
-  {
-    id: 'carrefour',
-    title: 'Carrefour',
-    category: 'Shopping',
-    time: '6:45 PM',
-    source: 'Equity',
-    amount: -6500,
-    icon: 'shopping-cart',
-  },
-  {
-    id: 'kplc',
-    title: 'Kenya Power',
-    category: 'Bills',
-    time: '3:20 PM',
-    source: 'M-Pesa',
-    amount: -3200,
-    icon: 'zap',
-  },
-];
-
-const march21Activities: ActivityItem[] = [
-  {
-    id: 'netflix',
-    title: 'Netflix',
-    category: 'Entertainment',
-    time: '11:00 AM',
-    source: 'Equity',
-    amount: -1299,
-    icon: 'film',
-  },
-  {
-    id: 'matatu',
-    title: 'Matatu - CBD',
-    category: 'Transport',
-    time: '8:00 AM',
-    source: 'M-Pesa',
-    amount: -60,
-    icon: 'truck',
-  },
-];
+type DashboardSummary = {
+  expenses: number | string;
+};
 
 const formatKes = (value: number) => {
   try {
@@ -150,6 +80,161 @@ const formatSigned = (value: number) => {
 };
 
 export default function ActivityScreen() {
+  const { tokens, refreshAccessToken } = useAuth();
+  const accessToken = tokens?.access;
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [searchText, setSearchText] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (!accessToken) {
+      setCategories([]);
+      setTransactions([]);
+      setSummary(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+      try {
+        const fetchWithRefresh = async <T,>(fetcher: (token: string) => ReturnType<typeof api.get<T>>) => {
+          let result = await fetcher(accessToken);
+          if (result.status === 401) {
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+              result = await fetcher(newToken);
+            }
+          }
+          return result;
+        };
+
+        const [categoriesRes, transactionsRes, summaryRes] = await Promise.all([
+          fetchWithRefresh((token) => api.get<CategoryOption[]>('categories/', token)),
+          fetchWithRefresh((token) => api.get<{ results?: TransactionItem[] } | TransactionItem[]>('transactions/', token)),
+          fetchWithRefresh((token) => api.get<DashboardSummary>('analytics/dashboard/', token)),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setCategories(categoriesRes.ok && categoriesRes.data ? categoriesRes.data : []);
+        if (transactionsRes.ok && transactionsRes.data) {
+          const items = Array.isArray(transactionsRes.data)
+            ? transactionsRes.data
+            : transactionsRes.data.results ?? [];
+          setTransactions(items);
+        } else {
+          setTransactions([]);
+        }
+        setSummary(summaryRes.ok && summaryRes.data ? summaryRes.data : null);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage('Unable to load transactions right now.');
+          setCategories([]);
+          setTransactions([]);
+          setSummary(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, refreshAccessToken]);
+
+  const categoryChips: CategoryChip[] = useMemo(() => {
+    const counts = transactions.reduce<Record<number, number>>((acc, item) => {
+      const id = item.category?.id;
+      if (id) {
+        acc[id] = (acc[id] ?? 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    const allChip: CategoryChip = {
+      id: 'all',
+      label: 'All',
+      count: transactions.length,
+      active: selectedCategoryId === 'all',
+    };
+
+    const categoryChipsList = categories.map((category) => ({
+      id: String(category.id),
+      label: category.name,
+      count: counts[category.id] ?? 0,
+      active: selectedCategoryId === String(category.id),
+    }));
+
+    return [allChip, ...categoryChipsList];
+  }, [categories, transactions, selectedCategoryId]);
+
+  const filteredTransactions = useMemo(() => {
+    const term = searchText.trim().toLowerCase();
+    return transactions.filter((item) => {
+      if (selectedCategoryId !== 'all' && String(item.category?.id ?? '') !== selectedCategoryId) {
+        return false;
+      }
+      if (term && !item.description.toLowerCase().includes(term)) {
+        return false;
+      }
+      return true;
+    });
+  }, [transactions, selectedCategoryId, searchText]);
+
+  const groupedTransactions = useMemo(() => {
+    const groups: Record<string, ActivityItem[]> = {};
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+    filteredTransactions.forEach((item) => {
+      const dateLabel =
+        item.date === today
+          ? 'Today'
+          : item.date === yesterday
+            ? 'Yesterday'
+            : new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      const amount = Number(item.amount);
+      const isIncome = item.type === 'income';
+      const activity: ActivityItem = {
+        id: item.id,
+        title: item.description || 'Transaction',
+        category: item.category?.name ?? 'Uncategorized',
+        time: item.date,
+        source: item.type.toUpperCase(),
+        amount: isIncome ? amount : -amount,
+        icon: isIncome ? 'dollar-sign' : 'shopping-bag',
+        badge: isIncome ? 'Income' : undefined,
+      };
+
+      if (!groups[dateLabel]) {
+        groups[dateLabel] = [];
+      }
+      groups[dateLabel].push(activity);
+    });
+
+    return groups;
+  }, [filteredTransactions]);
+
+  const summarySpent = Number(summary?.expenses ?? 0);
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const avgPerDay = daysInMonth > 0 ? summarySpent / daysInMonth : 0;
+
   const renderActivityList = (items: ActivityItem[]) => (
     <View style={styles.activityList}>
       {items.map((item) => {
@@ -212,6 +297,8 @@ export default function ActivityScreen() {
               placeholder="Search transactions..."
               placeholderTextColor={palette.textSecondary}
               style={styles.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
             />
           </View>
           <TouchableOpacity style={styles.filterButton} activeOpacity={0.85}>
@@ -229,6 +316,7 @@ export default function ActivityScreen() {
               key={chip.id}
               style={[styles.chip, chip.active && styles.chipActive]}
               activeOpacity={0.85}
+              onPress={() => setSelectedCategoryId(chip.id)}
             >
               <Text style={[styles.chipText, chip.active && styles.chipTextActive]}>
                 {chip.label} ({chip.count})
@@ -240,36 +328,39 @@ export default function ActivityScreen() {
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={styles.summaryValue}>{formatKes(66550)}</Text>
+            <Text style={styles.summaryValue}>{formatKes(summarySpent)}</Text>
             <Text style={styles.summaryMeta}>This month</Text>
           </View>
           <View style={[styles.summaryCard, styles.summaryCardAccent]}>
             <Text style={[styles.summaryLabel, styles.summaryLabelAccent]}>Avg per Day</Text>
-            <Text style={styles.summaryValueAccent}>{formatKes(3140)}</Text>
-            <Text style={styles.summaryMetaAccent}>-8% vs last month</Text>
+            <Text style={styles.summaryValueAccent}>{formatKes(Math.round(avgPerDay))}</Text>
+            <Text style={styles.summaryMetaAccent}>Based on this month</Text>
           </View>
         </View>
 
-        <View style={styles.todayHeader}>
-          <Feather name="calendar" size={16} color={palette.textSecondary} />
-          <Text style={styles.todayTitle}>Today</Text>
-        </View>
+        {isLoading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={palette.accentGreen} />
+            <Text style={styles.loadingText}>Loading activity…</Text>
+          </View>
+        ) : null}
 
-        {renderActivityList(todayActivities)}
+        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
-        <View style={styles.sectionSpacer} />
-        <View style={styles.todayHeader}>
-          <Feather name="calendar" size={16} color={palette.textSecondary} />
-          <Text style={styles.todayTitle}>Yesterday</Text>
-        </View>
-        {renderActivityList(yesterdayActivities)}
+        {!isLoading && !errorMessage && Object.keys(groupedTransactions).length === 0 ? (
+          <Text style={styles.emptyText}>No transactions found.</Text>
+        ) : null}
 
-        <View style={styles.sectionSpacer} />
-        <View style={styles.todayHeader}>
-          <Feather name="calendar" size={16} color={palette.textSecondary} />
-          <Text style={styles.todayTitle}>Mar 21</Text>
-        </View>
-        {renderActivityList(march21Activities)}
+        {Object.entries(groupedTransactions).map(([label, items]) => (
+          <View key={label}>
+            <View style={styles.todayHeader}>
+              <Feather name="calendar" size={16} color={palette.textSecondary} />
+              <Text style={styles.todayTitle}>{label}</Text>
+            </View>
+            {renderActivityList(items)}
+            <View style={styles.sectionSpacer} />
+          </View>
+        ))}
       </ScrollView>
 
       <BottomNav />
@@ -428,6 +519,26 @@ const styles = StyleSheet.create({
   },
   sectionSpacer: {
     height: 10,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#DC2626',
+    marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    marginBottom: 10,
   },
   activityCard: {
     flexDirection: 'row',

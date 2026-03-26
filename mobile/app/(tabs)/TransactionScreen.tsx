@@ -41,41 +41,6 @@ type TransactionItem = {
   category?: CategoryOption | null;
 };
 
-const fallbackCategories: CategoryOption[] = [
-  { id: 1, name: 'Food' },
-  { id: 2, name: 'Transport' },
-  { id: 3, name: 'Rent' },
-  { id: 4, name: 'Entertainment' },
-  { id: 5, name: 'Salary' },
-];
-
-const fallbackTransactions: TransactionItem[] = [
-  {
-    id: 101,
-    amount: 8500,
-    type: 'expense',
-    description: 'Groceries and pantry restock',
-    date: '2026-03-08',
-    category: { id: 1, name: 'Food' },
-  },
-  {
-    id: 102,
-    amount: 120000,
-    type: 'income',
-    description: 'Monthly salary',
-    date: '2026-03-05',
-    category: { id: 5, name: 'Salary' },
-  },
-  {
-    id: 103,
-    amount: 3000,
-    type: 'expense',
-    description: 'Matatu and fuel',
-    date: '2026-03-03',
-    category: { id: 2, name: 'Transport' },
-  },
-];
-
 const toNumber = (value: number | string) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
@@ -120,8 +85,8 @@ export default function TransactionScreen() {
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
-  const [categories, setCategories] = useState<CategoryOption[]>(fallbackCategories);
-  const [transactions, setTransactions] = useState<TransactionItem[]>(fallbackTransactions);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategoryId, setFilterCategoryId] = useState<number | null>(null);
   const [filterMonth, setFilterMonth] = useState('');
@@ -178,12 +143,12 @@ export default function TransactionScreen() {
             result = await api.get<CategoryOption[]>('categories/', newToken);
           }
         }
-        if (isMounted && result.ok && result.data?.length) {
-          setCategories(result.data);
+        if (isMounted) {
+          setCategories(result.ok && result.data?.length ? result.data : []);
         }
       } catch (error) {
         if (isMounted) {
-          setCategories(fallbackCategories);
+          setCategories([]);
         }
       }
     };
@@ -239,7 +204,7 @@ export default function TransactionScreen() {
         );
       } catch (error) {
         if (isMounted) {
-          setTransactions(fallbackTransactions);
+          setTransactions([]);
           setNextPageUrl(null);
         }
       } finally {
@@ -437,25 +402,7 @@ export default function TransactionScreen() {
     }
 
     if (!accessToken) {
-      const tempCategory = selectedCategory ?? categories[0];
-      const newItem: TransactionItem = {
-        id: editingId ?? Math.floor(Math.random() * 100000),
-        amount: amountValue,
-        type: transactionType,
-        description: description.trim(),
-        date,
-        category: tempCategory,
-      };
-      if (editingId) {
-        setTransactions((prev) => prev.map((item) => (item.id === editingId ? newItem : item)));
-      } else {
-        setTransactions((prev) => [newItem, ...prev]);
-      }
-      setAmount('');
-      setDescription('');
-      setDate('');
-      setCategoryId(null);
-      setEditingId(null);
+      setFormError('Sign in to save transactions.');
       return;
     }
 

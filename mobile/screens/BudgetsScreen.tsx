@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -11,6 +13,8 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import BottomNav from '@/components/bottom-nav';
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -23,59 +27,28 @@ const palette = {
   card: '#FFFFFF',
 };
 
-type BudgetCategory = {
-  id: string;
-  title: string;
-  spent: number;
-  total: number;
-  progressColor: string;
-  icon: keyof typeof Feather.glyphMap;
-  alert?: boolean;
+type CategoryOption = {
+  id: number;
+  name: string;
 };
 
-const budgetCategories: BudgetCategory[] = [
-  {
-    id: 'shopping',
-    title: 'Shopping',
-    spent: 23450,
-    total: 30000,
-    progressColor: '#22C55E',
-    icon: 'shopping-bag',
-  },
-  {
-    id: 'food',
-    title: 'Food & Dining',
-    spent: 18200,
-    total: 20000,
-    progressColor: '#2563EB',
-    icon: 'coffee',
-  },
-  {
-    id: 'transport',
-    title: 'Transport',
-    spent: 12800,
-    total: 15000,
-    progressColor: '#22C55E',
-    icon: 'truck',
-  },
-  {
-    id: 'entertainment',
-    title: 'Entertainment',
-    spent: 8900,
-    total: 8000,
-    progressColor: '#EF4444',
-    icon: 'film',
-    alert: true,
-  },
-  {
-    id: 'bills',
-    title: 'Bills',
-    spent: 3200,
-    total: 10000,
-    progressColor: '#64748B',
-    icon: 'zap',
-  },
-];
+type BudgetItem = {
+  id: number;
+  month: string;
+  amount: number | string;
+  category: CategoryOption;
+};
+
+type BreakdownItem = {
+  category: string;
+  total: number | string;
+};
+
+const toNumber = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined) return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const formatKes = (value: number) => {
   try {
@@ -90,6 +63,140 @@ const formatKes = (value: number) => {
 };
 
 export default function BudgetsScreen() {
+  const { tokens, refreshAccessToken } = useAuth();
+  const accessToken = tokens?.access;
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [breakdown, setBreakdown] = useState<BreakdownItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [amount, setAmount] = useState('');
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  useEffect(() => {
+    if (!accessToken) {
+      setBudgets([]);
+      setCategories([]);
+      setBreakdown([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchWithRefresh = async <T,>(fetcher: (token: string) => ReturnType<typeof api.get<T>>) => {
+      let result = await fetcher(accessToken);
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await fetcher(newToken);
+        }
+      }
+      return result;
+    };
+
+    const fetchBudgets = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+      try {
+        const [budgetsRes, categoriesRes, breakdownRes] = await Promise.all([
+          fetchWithRefresh((token) => api.get<BudgetItem[]>(`budgets/?month=${month}`, token)),
+          fetchWithRefresh((token) => api.get<CategoryOption[]>('categories/', token)),
+          fetchWithRefresh((token) => api.get<BreakdownItem[]>(`analytics/category-breakdown/?month=${month}`, token)),
+        ]);
+
+        if (!isMounted) return;
+
+        setBudgets(budgetsRes.ok && budgetsRes.data ? budgetsRes.data : []);
+        setCategories(categoriesRes.ok && categoriesRes.data ? categoriesRes.data : []);
+        setBreakdown(breakdownRes.ok && breakdownRes.data ? breakdownRes.data : []);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage('Unable to load budgets right now.');
+          setBudgets([]);
+          setCategories([]);
+          setBreakdown([]);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchBudgets();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, month, refreshAccessToken]);
+
+  const spentByCategory = useMemo(() => {
+    return breakdown.reduce<Record<string, number>>((acc, item) => {
+      acc[item.category] = toNumber(item.total);
+      return acc;
+    }, {});
+  }, [breakdown]);
+
+  const totalBudget = useMemo(() => budgets.reduce((sum, item) => sum + toNumber(item.amount), 0), [budgets]);
+  const totalSpent = useMemo(() => {
+    return budgets.reduce((sum, item) => sum + (spentByCategory[item.category?.name] ?? 0), 0);
+  }, [budgets, spentByCategory]);
+
+  const remaining = totalBudget - totalSpent;
+  const progressPercent = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
+  const monthLabel = useMemo(() => {
+    const parsed = new Date(`${month}-01T00:00:00`);
+    return parsed.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  }, [month]);
+
+  const handleAddBudget = async () => {
+    setErrorMessage('');
+    const numericAmount = toNumber(amount);
+    if (!selectedCategoryId) {
+      setErrorMessage('Select a category.');
+      return;
+    }
+    if (!numericAmount || numericAmount <= 0) {
+      setErrorMessage('Enter a valid budget amount.');
+      return;
+    }
+    if (!accessToken) {
+      setErrorMessage('Sign in to create budgets.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      let result = await api.post<BudgetItem>(
+        'budgets/',
+        { category_id: selectedCategoryId, month: `${month}-01`, amount: numericAmount },
+        accessToken,
+      );
+      if (result.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          result = await api.post<BudgetItem>(
+            'budgets/',
+            { category_id: selectedCategoryId, month: `${month}-01`, amount: numericAmount },
+            newToken,
+          );
+        }
+      }
+      if (result.ok && result.data) {
+        setBudgets((prev) => [result.data, ...prev]);
+        setAmount('');
+        setSelectedCategoryId(null);
+        setShowAdd(false);
+      } else {
+        setErrorMessage(result.message ?? 'Unable to create budget.');
+      }
+    } catch (error) {
+      setErrorMessage('Unable to create budget right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={palette.surface} />
@@ -106,52 +213,113 @@ export default function BudgetsScreen() {
           end={{ x: 1, y: 1 }}
         >
           <View style={styles.summaryTopRow}>
-            <Text style={styles.summaryMonth}>March 2026</Text>
-            <Text style={styles.summaryPercent}>91%</Text>
+            <Text style={styles.summaryMonth}>{monthLabel}</Text>
+            <Text style={styles.summaryPercent}>{Math.round(progressPercent)}%</Text>
           </View>
-          <Text style={styles.summarySpent}>{formatKes(66550)}</Text>
-          <Text style={styles.summaryMeta}>of {formatKes(73000)} budget</Text>
+          <Text style={styles.summarySpent}>{formatKes(totalSpent)}</Text>
+          <Text style={styles.summaryMeta}>of {formatKes(totalBudget)} budget</Text>
 
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '91%' }]} />
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
           </View>
 
           <View style={styles.summaryFooter}>
             <Feather name="trending-up" size={14} color={palette.accentGreen} />
-            <Text style={styles.summaryFooterText}>KES 6,450 remaining for this month</Text>
+            <Text style={styles.summaryFooterText}>
+              {remaining >= 0
+                ? `${formatKes(remaining)} remaining for this month`
+                : `${formatKes(Math.abs(remaining))} over budget`}
+            </Text>
           </View>
         </LinearGradient>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Categories</Text>
-          <View style={styles.addRow}>
-            <Text style={styles.addText}>+ Add</Text>
-          </View>
+          <TouchableOpacity style={styles.addRow} onPress={() => setShowAdd((prev) => !prev)}>
+            <Text style={styles.addText}>{showAdd ? 'Close' : '+ Add'}</Text>
+          </TouchableOpacity>
         </View>
 
+        {showAdd ? (
+          <View style={styles.addCard}>
+            <Text style={styles.addLabel}>Month (YYYY-MM)</Text>
+            <TextInput
+              value={month}
+              onChangeText={setMonth}
+              placeholder="YYYY-MM"
+              placeholderTextColor={palette.textSecondary}
+              style={styles.addInput}
+            />
+            <Text style={styles.addLabel}>Select Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.chip,
+                    selectedCategoryId === category.id && styles.chipActive,
+                  ]}
+                  onPress={() => setSelectedCategoryId(category.id)}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selectedCategoryId === category.id && styles.chipTextActive,
+                    ]}
+                  >
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={styles.addLabel}>Budget Amount</Text>
+            <TextInput
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="e.g. 25000"
+              placeholderTextColor={palette.textSecondary}
+              keyboardType="numeric"
+              style={styles.addInput}
+            />
+            <TouchableOpacity
+              style={[styles.addButton, isSaving && styles.addButtonDisabled]}
+              onPress={handleAddBudget}
+              disabled={isSaving}
+            >
+              {isSaving ? <ActivityIndicator color={palette.card} /> : <Text style={styles.addButtonText}>Save Budget</Text>}
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <View style={styles.categoryList}>
-          {budgetCategories.map((category) => {
-            const percent = Math.min((category.spent / category.total) * 100, 100);
-            const remaining = category.total - category.spent;
-            const isOver = remaining < 0;
-            const progressColor = isOver ? '#EF4444' : category.progressColor;
+          {isLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={palette.accentGreen} />
+              <Text style={styles.loadingText}>Loading budgets…</Text>
+            </View>
+          ) : null}
+          {!isLoading && budgets.length === 0 ? (
+            <Text style={styles.emptyText}>No budgets for this month yet.</Text>
+          ) : null}
+          {budgets.map((budget) => {
+            const spent = spentByCategory[budget.category.name] ?? 0;
+            const percent = budget.amount ? Math.min((spent / toNumber(budget.amount)) * 100, 100) : 0;
+            const remainingForCategory = toNumber(budget.amount) - spent;
+            const isOver = remainingForCategory < 0;
+            const progressColor = isOver ? '#EF4444' : palette.accentGreen;
             return (
-              <View key={category.id} style={styles.categoryCard}>
+              <View key={budget.id} style={styles.categoryCard}>
                 <View style={styles.categoryHeader}>
                   <View style={styles.categoryIcon}>
-                    <Feather name={category.icon} size={18} color={palette.accentGreen} />
+                    <Feather name="tag" size={18} color={palette.accentGreen} />
                   </View>
                   <View style={styles.categoryInfo}>
-                    <Text style={styles.categoryTitle}>{category.title}</Text>
+                    <Text style={styles.categoryTitle}>{budget.category.name}</Text>
                     <Text style={styles.categoryMeta}>
-                      {formatKes(category.spent)} / {formatKes(category.total)}
+                      {formatKes(spent)} / {formatKes(toNumber(budget.amount))}
                     </Text>
                   </View>
-                  {category.alert ? (
-                    <View style={styles.alertBadge}>
-                      <Text style={styles.alertBadgeText}>!</Text>
-                    </View>
-                  ) : null}
                 </View>
                 <View style={styles.categoryProgressTrack}>
                   <View
@@ -168,7 +336,7 @@ export default function BudgetsScreen() {
                       isOver && styles.categoryUsedOver,
                     ]}
                   >
-                    {`${Math.round((category.spent / category.total) * 100)}% used`}
+                    {`${Math.round(percent)}% used`}
                   </Text>
                   <Text
                     style={[
@@ -177,64 +345,15 @@ export default function BudgetsScreen() {
                     ]}
                   >
                     {isOver
-                      ? `${formatKes(Math.abs(remaining))} over budget`
-                      : `${formatKes(remaining)} left`}
+                      ? `${formatKes(Math.abs(remainingForCategory))} over budget`
+                      : `${formatKes(remainingForCategory)} left`}
                   </Text>
                 </View>
               </View>
             );
           })}
         </View>
-
-        <Text style={styles.sectionTitleSpacing}>Savings Goal</Text>
-        <LinearGradient
-          colors={['#34D399', '#22C55E']}
-          style={styles.savingsCard}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.savingsHeader}>
-            <View style={styles.savingsIcon}>
-              <Feather name="target" size={18} color={palette.card} />
-            </View>
-            <View>
-              <Text style={styles.savingsTitle}>Emergency Fund</Text>
-              <Text style={styles.savingsSubtitle}>Goal: {formatKes(100000)}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.savingsAmount}>{formatKes(67500)}</Text>
-
-          <View style={styles.savingsProgressTrack}>
-            <View style={[styles.savingsProgressFill, { width: '67.5%' }]} />
-          </View>
-
-          <View style={styles.savingsMetaRow}>
-            <Text style={styles.savingsMeta}>67.5% complete</Text>
-            <Text style={styles.savingsMeta}>{formatKes(32500)} to go</Text>
-          </View>
-
-          <View style={styles.savingsFooter}>
-            <View>
-              <Text style={styles.savingsLabel}>Monthly Target</Text>
-              <Text style={styles.savingsTarget}>{formatKes(5000)}</Text>
-            </View>
-            <TouchableOpacity style={styles.savingsButton} activeOpacity={0.85}>
-              <Text style={styles.savingsButtonText}>Add Funds</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.tipCard}>
-          <View style={styles.tipHeader}>
-            <Text style={styles.tipIcon}>💡</Text>
-            <Text style={styles.tipTitle}>Budget Tip</Text>
-          </View>
-          <Text style={styles.tipText}>
-            You're over budget on Entertainment by {formatKes(900)}. Consider reducing
-            spending to stay on track this month.
-          </Text>
-        </View>
+        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
       </ScrollView>
 
       <BottomNav />
@@ -348,8 +467,84 @@ const styles = StyleSheet.create({
     color: palette.accentGreen,
     fontWeight: '600',
   },
+  addCard: {
+    backgroundColor: palette.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+    marginBottom: 18,
+    gap: 10,
+  },
+  addLabel: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    fontWeight: '600',
+  },
+  addInput: {
+    backgroundColor: palette.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+    fontSize: 13,
+    color: palette.textPrimary,
+  },
+  addButton: {
+    marginTop: 6,
+    backgroundColor: palette.accentGreen,
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  addButtonDisabled: {
+    opacity: 0.7,
+  },
+  addButtonText: {
+    color: palette.card,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chipRow: {
+    gap: 10,
+    paddingRight: 12,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  chipActive: {
+    backgroundColor: palette.accentGreen,
+    borderColor: 'rgba(74, 222, 128, 0.6)',
+  },
+  chipText: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: palette.card,
+  },
   categoryList: {
     gap: 14,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  emptyText: {
+    fontSize: 12,
+    color: palette.textSecondary,
   },
   categoryCard: {
     backgroundColor: palette.card,
@@ -434,6 +629,11 @@ const styles = StyleSheet.create({
   categoryLeftOver: {
     color: '#EF4444',
     fontWeight: '600',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#DC2626',
+    marginTop: 10,
   },
   savingsCard: {
     borderRadius: 22,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -8,8 +8,11 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import BottomNav from '@/components/bottom-nav';
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -22,67 +25,12 @@ const palette = {
   card: '#FFFFFF',
 };
 
-type ConnectedAccount = {
-  id: string;
-  name: string;
-  initials: string;
-  initialsColor: string;
-  initialsBg: string;
-  lastDigits: string;
-  typeLabel: string;
-  balance: number;
-  synced: boolean;
-  highlight?: boolean;
+type MpesaStatus = {
+  phone_number: string;
+  status: 'pending' | 'connected' | 'disconnected' | 'error';
+  last_sync: string | null;
+  transactions_imported: number;
 };
-
-type AddAccountOption = {
-  id: string;
-  name: string;
-  subtitle: string;
-};
-
-const connectedAccounts: ConnectedAccount[] = [
-  {
-    id: 'mpesa',
-    name: 'M-Pesa',
-    initials: 'M',
-    initialsColor: '#FFFFFF',
-    initialsBg: '#10B981',
-    lastDigits: '7823',
-    typeLabel: 'Mobile Money',
-    balance: 45200,
-    synced: true,
-  },
-  {
-    id: 'equity',
-    name: 'Equity Bank',
-    initials: 'E',
-    initialsColor: '#FFFFFF',
-    initialsBg: '#2563EB',
-    lastDigits: '4521',
-    typeLabel: 'Savings Account',
-    balance: 79380,
-    synced: true,
-    highlight: true,
-  },
-  {
-    id: 'kcb',
-    name: 'KCB Bank',
-    initials: 'K',
-    initialsColor: '#FFFFFF',
-    initialsBg: '#0F172A',
-    lastDigits: '9012',
-    typeLabel: 'Current Account',
-    balance: 32100,
-    synced: true,
-  },
-];
-
-const addAccountOptions: AddAccountOption[] = [
-  { id: 'coop', name: 'Co-operative Bank', subtitle: 'Tap to connect' },
-  { id: 'ncba', name: 'NCBA Bank', subtitle: 'Tap to connect' },
-  { id: 'stanbic', name: 'Standard Chartered', subtitle: 'Tap to connect' },
-];
 
 const formatKes = (value: number) => {
   try {
@@ -97,6 +45,46 @@ const formatKes = (value: number) => {
 };
 
 export default function AccountsScreen() {
+  const router = useRouter();
+  const { tokens, refreshAccessToken } = useAuth();
+  const accessToken = tokens?.access;
+  const [mpesaStatus, setMpesaStatus] = useState<MpesaStatus | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setMpesaStatus(null);
+      return;
+    }
+    let isMounted = true;
+
+    const fetchStatus = async () => {
+      setIsLoading(true);
+      try {
+        let result = await api.get<MpesaStatus>('integrations/mpesa/status/', accessToken);
+        if (result.status === 401) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            result = await api.get<MpesaStatus>('integrations/mpesa/status/', newToken);
+          }
+        }
+        if (isMounted) {
+          setMpesaStatus(result.ok ? result.data ?? null : null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, refreshAccessToken]);
+
   return (
     <View style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={palette.surface} />
@@ -111,84 +99,72 @@ export default function AccountsScreen() {
 
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Combined Balance</Text>
-          <Text style={styles.summaryValue}>{formatKes(156680)}</Text>
-          <Text style={styles.summaryMeta}>Across 3 accounts</Text>
+          <Text style={styles.summaryValue}>{formatKes(0)}</Text>
+          <Text style={styles.summaryMeta}>No accounts connected</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Connected Accounts</Text>
 
-        <View style={styles.accountList}>
-          {connectedAccounts.map((account) => (
-            <Pressable
-              key={account.id}
-              style={({ pressed, hovered }) => [
-                styles.accountCard,
-                account.highlight && styles.accountCardHighlight,
-                (pressed || hovered) && styles.accountCardActive,
-              ]}
-            >
-              <View style={styles.accountTopRow}>
-                <View
-                  style={[
-                    styles.accountBadge,
-                    { backgroundColor: account.initialsBg },
-                  ]}
-                >
-                  <Text style={[styles.accountBadgeText, { color: account.initialsColor }]}>
-                    {account.initials}
+        <View style={styles.emptyCard}>
+          <Feather name="link" size={18} color={palette.textSecondary} />
+          <Text style={styles.emptyTitle}>No connected accounts yet</Text>
+          <Text style={styles.emptySubtitle}>Connect a bank or wallet to see balances.</Text>
+          <Pressable style={styles.connectButton} onPress={() => router.push('/ConnectAccountsPlusScreen')}>
+            <Text style={styles.connectButtonText}>Connect Account</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.sectionTitleSpacing} />
+        <Text style={styles.sectionTitle}>M-Pesa</Text>
+        <Pressable style={styles.accountCard} onPress={() => router.push('/ConnectAccountsPlusScreen')}>
+          <View style={styles.accountTopRow}>
+            <View style={[styles.accountBadge, { backgroundColor: palette.mpesaGreen }]}>
+              <Text style={[styles.accountBadgeText, { color: palette.card }]}>M</Text>
+            </View>
+            <View style={styles.accountInfo}>
+              <Text style={styles.accountName}>M-Pesa Wallet</Text>
+              <View style={styles.accountMeta}>
+                <Text style={styles.accountNumber}>
+                  {mpesaStatus?.phone_number ? mpesaStatus.phone_number : 'Not connected'}
+                </Text>
+                <View style={styles.accountTag}>
+                  <Text style={styles.accountTagText}>
+                    {mpesaStatus?.status ?? (isLoading ? 'Loading' : 'Disconnected')}
                   </Text>
                 </View>
-                <View style={styles.accountInfo}>
-                  <Text style={styles.accountName}>{account.name}</Text>
-                  <View style={styles.accountMeta}>
-                    <Text style={styles.accountNumber}>{`***${account.lastDigits}`}</Text>
-                    <View style={styles.accountTag}>
-                      <Text style={styles.accountTagText}>{account.typeLabel}</Text>
-                    </View>
-                  </View>
-                </View>
-                <Feather name="chevron-right" size={18} color={palette.textSecondary} />
               </View>
+            </View>
+            <Feather name="chevron-right" size={18} color={palette.textSecondary} />
+          </View>
 
-              <View style={styles.accountDivider} />
+          <View style={styles.accountDivider} />
 
-              <View style={styles.accountBottomRow}>
-                <View>
-                  <Text style={styles.balanceLabel}>Balance</Text>
-                  <Text style={styles.balanceValue}>{formatKes(account.balance)}</Text>
-                </View>
-                {account.synced ? (
-                  <View style={styles.syncStatus}>
-                    <View style={styles.syncDot} />
-                    <Text style={styles.syncText}>Synced</Text>
-                  </View>
-                ) : null}
-              </View>
-            </Pressable>
-          ))}
-        </View>
+          <View style={styles.accountBottomRow}>
+            <View>
+              <Text style={styles.balanceLabel}>Transactions imported</Text>
+              <Text style={styles.balanceValue}>{mpesaStatus?.transactions_imported ?? 0}</Text>
+            </View>
+            <View style={styles.syncStatus}>
+              <View style={styles.syncDot} />
+              <Text style={styles.syncText}>
+                {mpesaStatus?.last_sync ? new Date(mpesaStatus.last_sync).toLocaleDateString() : 'No sync yet'}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
 
         <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>Add New Account</Text>
         <View style={styles.addAccountList}>
-          {addAccountOptions.map((item, index) => (
-            <Pressable
-              key={item.id}
-              style={({ pressed, hovered }) => [
-                styles.addAccountCard,
-                index === 1 && styles.addAccountCardActive,
-                (pressed || hovered) && styles.addAccountCardPressed,
-              ]}
-            >
-              <View style={styles.addAccountIcon}>
-                <Feather name="home" size={18} color={palette.cashBlue} />
-              </View>
-              <View style={styles.addAccountInfo}>
-                <Text style={styles.addAccountTitle}>{item.name}</Text>
-                <Text style={styles.addAccountSubtitle}>{item.subtitle}</Text>
-              </View>
-              <Text style={styles.addAccountPlus}>+</Text>
-            </Pressable>
-          ))}
+          <Pressable style={styles.addAccountCard}>
+            <View style={styles.addAccountIcon}>
+              <Feather name="home" size={18} color={palette.cashBlue} />
+            </View>
+            <View style={styles.addAccountInfo}>
+              <Text style={styles.addAccountTitle}>Connect a bank or wallet</Text>
+              <Text style={styles.addAccountSubtitle}>Coming soon</Text>
+            </View>
+            <Text style={styles.addAccountPlus}>+</Text>
+          </Pressable>
         </View>
 
         <View style={styles.securityCard}>
@@ -270,6 +246,37 @@ const styles = StyleSheet.create({
   },
   accountList: {
     gap: 16,
+  },
+  emptyCard: {
+    backgroundColor: palette.card,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.14)',
+    gap: 10,
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: palette.textPrimary,
+  },
+  emptySubtitle: {
+    fontSize: 12,
+    color: palette.textSecondary,
+  },
+  connectButton: {
+    marginTop: 4,
+    backgroundColor: palette.accentGreen,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+  },
+  connectButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: palette.card,
   },
   accountCard: {
     backgroundColor: palette.card,
