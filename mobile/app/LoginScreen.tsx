@@ -27,6 +27,7 @@ const palette = {
   textPrimary: '#0F172A',
   cashBlue: '#2563EB',
   mpesaGreen: '#10B981',
+  errorRed: '#EF4444',
   surface: '#F8FAFC',
   card: '#FFFFFF',
 };
@@ -75,6 +76,23 @@ export default function LoginScreen() {
     return messages.join(' | ');
   };
 
+  const buildFriendlyLoginError = (result: { error?: string; errors?: unknown }) => {
+    const fieldErrors = formatErrors(result.errors);
+    const combinedMessage = [fieldErrors, result.error].filter(Boolean).join(' | ');
+
+    if (/invalid credentials/i.test(combinedMessage)) {
+      return 'Incorrect email or password.';
+    }
+    if (/no active account|user.*not found|email.*not found|does not exist/i.test(combinedMessage)) {
+      return 'No account found for that email.';
+    }
+    if (/inactive|disabled/i.test(combinedMessage)) {
+      return 'This account is inactive. Please contact support.';
+    }
+
+    return fieldErrors ?? result.error ?? 'Unable to sign in.';
+  };
+
   const handleLogin = async () => {
     setFormError('');
     if (!email.trim() || !password) {
@@ -89,8 +107,7 @@ export default function LoginScreen() {
       router.replace('/Dashboard');
       return;
     }
-    const fieldErrors = formatErrors(result.errors);
-    setFormError(fieldErrors ?? result.error ?? 'Unable to sign in.');
+    setFormError(buildFriendlyLoginError(result));
   };
 
   useEffect(() => {
@@ -442,7 +459,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   errorText: {
-    color: palette.cashBlue,
+    color: palette.errorRed,
     fontSize: 12,
     marginBottom: 12,
   },
