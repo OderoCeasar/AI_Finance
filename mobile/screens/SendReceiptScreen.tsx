@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 import BottomNav from '@/components/bottom-nav';
 import { api } from '@/lib/api';
@@ -70,42 +71,47 @@ export default function SendReceiptScreen() {
     [goals, selectedGoalId],
   );
 
-  useEffect(() => {
-    if (!accessToken) {
-      setGoals([]);
-      setSelectedGoalId(null);
-      return;
-    }
-    let isMounted = true;
-
-    const fetchGoals = async () => {
-      setIsLoading(true);
-      try {
-        let result = await api.get<SavingsGoal[]>('savings-goals/', accessToken);
-        if (result.status === 401) {
-          const newToken = await refreshAccessToken();
-          if (newToken) {
-            result = await api.get<SavingsGoal[]>('savings-goals/', newToken);
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const fetchGoals = async () => {
+        if (!accessToken) {
+          if (isActive) {
+            setGoals([]);
+            setSelectedGoalId(null);
+          }
+          return;
+        }
+        if (isActive) {
+          setIsLoading(true);
+        }
+        try {
+          let result = await api.get<SavingsGoal[]>('savings-goals/', accessToken);
+          if (result.status === 401) {
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+              result = await api.get<SavingsGoal[]>('savings-goals/', newToken);
+            }
+          }
+          if (isActive) {
+            const nextGoals = result.ok && result.data ? result.data : [];
+            setGoals(nextGoals);
+            setSelectedGoalId((prev) => prev ?? (nextGoals[0]?.id ?? null));
+          }
+        } finally {
+          if (isActive) {
+            setIsLoading(false);
           }
         }
-        if (isMounted) {
-          const nextGoals = result.ok && result.data ? result.data : [];
-          setGoals(nextGoals);
-          setSelectedGoalId((prev) => prev ?? (nextGoals[0]?.id ?? null));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
+      };
 
-    fetchGoals();
+      fetchGoals();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [accessToken, refreshAccessToken]);
+      return () => {
+        isActive = false;
+      };
+    }, [accessToken, refreshAccessToken]),
+  );
 
   const handleSend = useCallback(async () => {
     setErrorMessage('');
