@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -99,6 +100,34 @@ export default function DashboardScreen() {
   const [showBalances, setShowBalances] = useState(true);
   const accessToken = tokens?.access;
 
+  const fetchWithRefresh = async <T,>(
+    fetcher: (token: string) => ReturnType<typeof api.get<T>>,
+  ) => {
+    if (!accessToken) {
+      return {
+        ok: false,
+        status: 401,
+        message: 'Not authenticated.',
+      } as const;
+    }
+    let result = await fetcher(accessToken);
+    if (result.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        result = await fetcher(newToken);
+      }
+    }
+    return result;
+  };
+
+  const handleQuickSave = useCallback(() => {
+    if (!accessToken) {
+      Alert.alert('Sign in required', 'Please sign in to add to your savings.');
+      return;
+    }
+    router.push('/SendReceipt');
+  }, [accessToken, router]);
+
   useEffect(() => {
     if (!accessToken) {
       return;
@@ -108,19 +137,6 @@ export default function DashboardScreen() {
 
     const fetchDashboard = async () => {
       try {
-        const fetchWithRefresh = async <T,>(
-          fetcher: (token: string) => ReturnType<typeof api.get<T>>,
-        ) => {
-          let result = await fetcher(accessToken);
-          if (result.status === 401) {
-            const newToken = await refreshAccessToken();
-            if (newToken) {
-              result = await fetcher(newToken);
-            }
-          }
-          return result;
-        };
-
         const [summaryRes, transactionsRes, mpesaRes] = await Promise.all([
           fetchWithRefresh((token) => api.get<DashboardSummary>('analytics/dashboard/', token)),
           fetchWithRefresh((token) => api.get<{ results?: TransactionItem[] } | TransactionItem[]>('transactions/', token)),
@@ -190,37 +206,29 @@ export default function DashboardScreen() {
   }, [user?.name]);
   const savingsRate = toNumber(summary?.savings_rate);
 
-  const quickActions: QuickAction[] = useMemo(
-    () => [
-      {
-        label: 'Send',
-        icon: 'arrow-up-right',
-        color: '#16A34A',
-        background: 'rgba(34, 197, 94, 0.15)',
-      },
-      {
-        label: 'Receive',
-        icon: 'arrow-down-left',
-        color: '#EA580C',
-        background: 'rgba(249, 115, 22, 0.15)',
-      },
-      {
-        label: 'Budget',
-        icon: 'pie-chart',
-        color: '#2563EB',
-        background: 'rgba(37, 99, 235, 0.12)',
-        onPress: () => router.push('/Budgets'),
-      },
-      {
-        label: 'Save',
-        icon: 'dollar-sign',
-        color: '#CA8A04',
-        background: 'rgba(234, 179, 8, 0.18)',
-        onPress: () => router.push('/SavingsScreen'),
-      },
-    ],
-    [router],
-  );
+  const quickActions: QuickAction[] = [
+    {
+      label: 'Send',
+      icon: 'arrow-up-right',
+      color: '#16A34A',
+      background: 'rgba(34, 197, 94, 0.15)',
+      onPress: handleQuickSave,
+    },
+    {
+      label: 'Budget',
+      icon: 'pie-chart',
+      color: '#2563EB',
+      background: 'rgba(37, 99, 235, 0.12)',
+      onPress: () => router.push('/Budgets'),
+    },
+    {
+      label: 'Save',
+      icon: 'dollar-sign',
+      color: '#CA8A04',
+      background: 'rgba(234, 179, 8, 0.18)',
+      onPress: () => router.push('/SavingsScreen'),
+    },
+  ];
 
   const maskedAmount = '*****';
 
