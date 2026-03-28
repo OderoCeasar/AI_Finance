@@ -41,6 +41,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const STORAGE_USER_KEY = 'auth.user';
 const STORAGE_TOKENS_KEY = 'auth.tokens';
+const STORAGE_FIRST_LOGIN_PREFIX = 'auth.first_login.';
 let refreshPromise: Promise<string | null> | null = null;
 
 const parseStored = <T,>(value: string | null): T | null => {
@@ -128,6 +129,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     console.log('[Auth] Signup successful, persisting auth...');
     await persistAuth(result.data);
+    if (result.data.user?.id) {
+      await storage.setItem(`${STORAGE_FIRST_LOGIN_PREFIX}${result.data.user.id}`, 'true');
+    }
     console.log('[Auth] Auth persisted, tokens:', !!result.data.tokens);
     return { ok: true };
   };

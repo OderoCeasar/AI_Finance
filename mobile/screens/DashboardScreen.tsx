@@ -14,7 +14,9 @@ import { useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { storage } from '@/lib/storage';
 import BottomNav from '@/components/bottom-nav';
+import { BudgetQuickIcon, SaveQuickIcon, SendQuickIcon } from '@/components/quick-action-icons';
 
 const palette = {
   accentGreen: '#4ADE80',
@@ -41,6 +43,7 @@ type QuickAction = {
   color: string;
   background: string;
   onPress?: () => void;
+  iconElement?: React.ReactNode;
 };
 
 type ActivityItem = {
@@ -98,6 +101,7 @@ export default function DashboardScreen() {
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
   const [mpesaStatus, setMpesaStatus] = useState<MpesaStatus | null>(null);
   const [showBalances, setShowBalances] = useState(true);
+  const [welcomeLabel, setWelcomeLabel] = useState('Welcome back');
   const accessToken = tokens?.access;
 
   const fetchWithRefresh = async <T,>(
@@ -185,12 +189,28 @@ export default function DashboardScreen() {
     };
   }, [accessToken, refreshAccessToken]);
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }, []);
+  useEffect(() => {
+    if (!user?.id) {
+      setWelcomeLabel('Welcome');
+      return;
+    }
+    let isMounted = true;
+    const loadGreeting = async () => {
+      const key = `auth.first_login.${user.id}`;
+      const flag = await storage.getItem(key);
+      if (!isMounted) return;
+      if (flag === 'true') {
+        setWelcomeLabel('Welcome');
+        await storage.setItem(key, 'false');
+      } else {
+        setWelcomeLabel('Welcome back');
+      }
+    };
+    loadGreeting();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   const displayName = user?.name?.trim() || 'there';
   const avatarLabel = useMemo(() => {
@@ -212,6 +232,7 @@ export default function DashboardScreen() {
       icon: 'arrow-up-right',
       color: '#16A34A',
       background: 'rgba(34, 197, 94, 0.15)',
+      iconElement: <SendQuickIcon color="#16A34A" accent="#22C55E" />,
       onPress: handleQuickSave,
     },
     {
@@ -219,6 +240,7 @@ export default function DashboardScreen() {
       icon: 'pie-chart',
       color: '#2563EB',
       background: 'rgba(37, 99, 235, 0.12)',
+      iconElement: <BudgetQuickIcon color="#2563EB" accent="#3B82F6" />,
       onPress: () => router.push('/Budgets'),
     },
     {
@@ -226,6 +248,7 @@ export default function DashboardScreen() {
       icon: 'dollar-sign',
       color: '#CA8A04',
       background: 'rgba(234, 179, 8, 0.18)',
+      iconElement: <SaveQuickIcon color="#CA8A04" accent="#F59E0B" />,
       onPress: () => router.push('/SavingsScreen'),
     },
   ];
@@ -242,7 +265,7 @@ export default function DashboardScreen() {
       >
         <View style={styles.greetingRow}>
           <View style={styles.greetingText}>
-            <Text style={styles.greetingLabel}>{`${greeting},`}</Text>
+            <Text style={styles.greetingLabel}>{`${welcomeLabel},`}</Text>
             <Text style={styles.greetingName}>{displayName}</Text>
           </View>
           <TouchableOpacity
@@ -308,7 +331,7 @@ export default function DashboardScreen() {
               onPress={action.onPress}
             >
               <View style={[styles.quickIcon, { backgroundColor: action.background }]}>
-                <Feather name={action.icon} size={18} color={action.color} />
+                {action.iconElement ?? <Feather name={action.icon} size={18} color={action.color} />}
               </View>
               <Text style={styles.quickLabel}>{action.label}</Text>
             </TouchableOpacity>
