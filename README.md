@@ -3,22 +3,29 @@
 A starter full-stack repository for an AI-powered personal finance product(OptiFi).
 
 Current state:
-- `backend/` working backend
-- `mobile/` working frontend
+- `backend/` working Django REST backend with auth, transactions, analytics, predictions, recommendations, and M-Pesa integration routes
+- `mobile/` Expo app with implemented screens and API client hooks
 
 ## Repository Structure
 
 ```text
-ai_finance/
+AI_Finance/
 ├── backend/
 │   ├── config/                 # Django project settings + URL config
-│   ├── users/                  # Planned user/account domain app
-│   ├── transactions/           # Planned transaction domain app
+│   ├── users/                  # Auth + profile domain app
+│   ├── transactions/           # Transactions, budgets, savings goals
+│   ├── analytics/              # Dashboard + category breakdown
+│   ├── predictions/            # Forecast + latest prediction
+│   ├── recommendations/        # List + generate recommendations
+│   ├── mpesa/                  # M-Pesa integration endpoints
 │   ├── manage.py
 │   └── requirements.txt
 ├── mobile/
-│   ├── README.md               # Expo examples documentation
-│   └── ... many other Expo examples
+│   ├── app/                    # Expo Router screens
+│   ├── screens/                # Shared screens
+│   ├── lib/                    # API client + auth helpers
+│   ├── assets/
+│   └── README.md               # Expo project notes
 └── .gitignore
 ```
 
@@ -41,11 +48,15 @@ Backend:
 - Django project boots successfully
 - Admin route is available at `/admin/`
 - SQLite database is configured
-- Two domain apps (`users`, `transactions`) are scaffolded
+- Auth endpoints are wired (register/login/profile/refresh/password reset/Google sign-in)
+- Transactions, budgets, savings goals, and categories APIs are wired
+- Analytics, predictions, and recommendations endpoints are wired
+- M-Pesa integration endpoints are wired
 
 Mobile:
-- Example Expo apps are available under `mobile/`
-- Frontend is not yet standardized to a single app target for this repo
+- Expo app is set up with file-based routing under `mobile/app/`
+- Screens and API client helpers are implemented under `mobile/screens/` and `mobile/lib/`
+- API base URL is configurable via `EXPO_PUBLIC_API_BASE_URL`
 
 ## Quick Start
 
@@ -78,7 +89,7 @@ Backend URLs:
 
 ### 3. Run a frontend (Expo)
 
-Pick one frontend example folder, then run it:
+Run the Expo app from `mobile/`:
 
 ```bash
 cd mobile
@@ -103,9 +114,43 @@ Before production, you should:
 
 ## API Status
 
-At the moment, no custom REST endpoints are wired in `backend/config/urls.py`.
-Only the admin route is active:
-- `GET /admin/`
+The REST API is wired under the `/api/` prefix. Key endpoints include:
+
+Auth:
+- `POST /api/auth/register/`
+- `POST /api/auth/login/`
+- `POST /api/auth/google/`
+- `GET /api/auth/profile/`
+- `POST /api/auth/refresh/`
+- `POST /api/auth/password-reset/`
+- `POST /api/auth/password-reset/confirm/`
+
+Transactions & Budgets:
+- `GET/POST /api/transactions/`
+- `PATCH/DELETE /api/transactions/{id}/`
+- `GET/POST /api/budgets/`
+- `GET/POST /api/savings-goals/`
+- `GET/POST /api/categories/`
+
+Analytics:
+- `GET /api/analytics/dashboard/`
+- `GET /api/analytics/spending-trend/`
+- `GET /api/analytics/category-breakdown/`
+
+Predictions:
+- `POST /api/predictions/forecast/`
+- `GET /api/predictions/latest/`
+
+Recommendations:
+- `GET /api/recommendations/`
+- `POST /api/recommendations/generate/`
+
+M-Pesa Integrations:
+- `GET /api/integrations/mpesa/status/`
+- `POST /api/integrations/mpesa/connect/`
+- `POST /api/integrations/mpesa/confirm/`
+- `POST /api/integrations/mpesa/disconnect/`
+- `POST /api/integrations/mpesa/transactions/import/`
 
 Planned API surface (suggested):
 - `POST /api/auth/register`
